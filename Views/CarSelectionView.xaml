@@ -1,0 +1,42 @@
+﻿<Window x:Class="TaxiWPF.Views.CarSelectionView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
+        Title="Выбор автомобиля" Height="500" Width="450"
+        WindowStartupLocation="CenterScreen" 
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="ВЫБОР АВТОМОБИЛЯ" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Content="✕" Command="{Binding CancelCommand}" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+
+            <ListBox Grid.Row="1" ItemsSource="{Binding Cars}" 
+                     SelectedItem="{Binding SelectedCar}"
+                     Style="{StaticResource OrdersListBox}" 
+                     ItemContainerStyle="{StaticResource CarCard}"
+                     Margin="15,10"/>
+
+            <StackPanel Grid.Row="2" Orientation="Vertical" Margin="15,0,15,15">
+                <Button Content="Добавить авто" Command="{Binding AddCarCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10"/>
+                <Button Content="Подробнее" Command="{Binding ViewDetailsCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="ОТМЕНА" Command="{Binding CancelCommand}" Style="{StaticResource DeclineButton}" Margin="0,0,5,0"/>
+                    <Button Grid.Column="1" Content="ВЫБРАТЬ" Command="{Binding SelectCarCommand}" Style="{StaticResource AcceptButton}" Margin="5,0,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

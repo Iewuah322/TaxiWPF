@@ -1,0 +1,165 @@
+﻿<Window x:Class="TaxiWPF.Views.DriverDashboardView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
+        Title="Личный кабинет водителя" Height="700" Width="900"
+        WindowStartupLocation="CenterScreen" 
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="TAXIWPF - КАБИНЕТ ВОДИТЕЛЯ" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+
+            <Border Grid.Row="1" Background="#FFFFFF" Margin="2,0,2,2" CornerRadius="0,0,10,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="350"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="30">
+                            <TextBlock Text="ВАШ БАЛАНС" Style="{StaticResource InputLabel}"/>
+                            <TextBlock Text="{Binding TotalBalance, StringFormat={}{0:C}, ConverterCulture=ru-RU}" 
+                                       FontSize="48" FontWeight="Bold" Foreground="#333333" Margin="0,0,0,20"/>
+
+                            <Button Content="ВЫЙТИ НА ЛИНИЮ" Command="{Binding GoToMapCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,30"/>
+
+                            <TextBlock Text="ЗАРАБОТОK ЗА 7 ДНЕЙ" Style="{StaticResource InputLabel}" Margin="0,0,0,10"/>
+                            <Border Background="#F9F9F9" CornerRadius="5" Height="180" Margin="0,0,0,20" BorderBrush="#EEE" BorderThickness="1">
+                                <ItemsControl ItemsSource="{Binding DailyEarnings}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel HorizontalAlignment="Center" Margin="10,0">
+                                                <TextBlock Text="{Binding Key}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#555" Margin="0,5,0,5"/>
+                                                <Rectangle Fill="#FFC107" Width="30" Height="{Binding Value}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+
+                            <Border Background="#FDFBF6" CornerRadius="5" Padding="20" Margin="0,10,0,0" BorderBrush="#E0CA8A" BorderThickness="1"
+                                    Visibility="{Binding IsWithdrawPanelVisible, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock Text="Вывод средств" FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#333"/>
+
+                                    <TextBlock Text="Сумма для вывода" Style="{StaticResource InputLabel}"/>
+                                    <TextBox Text="{Binding WithdrawAmount, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" Style="{StaticResource InputField}"/>
+                                    <TextBlock Text="{Binding AmountError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding AmountError, Converter={StaticResource StringToVisibilityConverter}}"/>
+
+                                    <TextBlock Text="Номер карты" Style="{StaticResource InputLabel}"/>
+                                    <TextBox Text="{Binding CardNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                                    <TextBlock Text="{Binding CardNumberError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CardNumberError, Converter={StaticResource StringToVisibilityConverter}}"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                            <TextBlock Text="Срок (MM/YY)" Style="{StaticResource InputLabel}"/>
+                                            <TextBox Text="{Binding CardExpiry, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                                            <TextBlock Text="{Binding CardExpiryError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CardExpiryError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                            <TextBlock Text="CVV" Style="{StaticResource InputLabel}"/>
+                                            <TextBox Text="{Binding CardCVV, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                                            <TextBlock Text="{Binding CvvError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CvvError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <CheckBox Content="Запомнить карту" IsChecked="{Binding RememberCard}" Margin="0,15,0,0" Foreground="#4F4A45"/>
+
+                                    <Button Content="ПОДТВЕРДИТЬ ВЫВОД" Command="{Binding WithdrawCommand}" Style="{StaticResource AcceptButton}" Margin="0,20,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border Grid.Column="1" Background="#F9F9F9" BorderBrush="#EEE" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20">
+                                <Button Content="Вывести средства" Command="{Binding ToggleWithdrawPanelCommand}" Style="{StaticResource DeclineButton}" Margin="0,10,0,10"/>
+
+                                <TextBlock Text="ВЫБЕРИТЕ КАРТУ" Style="{StaticResource InputLabel}" Margin="0,0,0,5"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ComboBox Grid.Column="0" 
+              ItemsSource="{Binding SavedCards}" 
+              SelectedItem="{Binding SelectedSavedCard}"
+              DisplayMemberPath="MaskedName"
+              Style="{StaticResource CustomComboBox}"/>
+
+                                    <Button Grid.Column="1" 
+            Content="✕" 
+            Command="{Binding DeleteCardCommand}" 
+            Style="{StaticResource CloseButton}" 
+            Width="45" Height="45" 
+            Margin="5,0,0,0" 
+            VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <TextBlock Text="ПОСЛЕДНИЕ ПОСТУПЛЕНИЯ" FontSize="14" FontWeight="Bold" Foreground="#333" Margin="0,0,0,10"/>
+                                <ListBox ItemsSource="{Binding RecentEarnings}" Style="{StaticResource OrdersListBox}" ItemContainerStyle="{StaticResource OrderCard}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" Foreground="#198754"/>
+                                                    <TextBlock Text="{Binding Date, StringFormat={}{dd.MM.yyyy HH:mm}}" FontSize="10" Foreground="#888"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Amount, StringFormat=+{0:C}, ConverterCulture=ru-RU}" 
+                                                           FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#198754"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Text="ПОСЛЕДНИЕ ВЫВОДЫ" FontSize="14" FontWeight="Bold" Foreground="#333" Margin="0,20,0,10"/>
+                                <ListBox ItemsSource="{Binding RecentWithdrawals}" Style="{StaticResource OrdersListBox}" ItemContainerStyle="{StaticResource OrderCard}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" Foreground="#D9534F"/>
+                                                    <TextBlock Text="{Binding Date, StringFormat={}{dd.MM.yyyy HH:mm}}" FontSize="10" Foreground="#888"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Amount, StringFormat={}+{0:C}, ConverterCulture=ru-RU}" 
+                                                           FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#D9534F"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

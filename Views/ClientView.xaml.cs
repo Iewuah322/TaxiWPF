@@ -32,6 +32,31 @@ namespace TaxiWPF.Views
         public ClientView()
         {
             InitializeComponent();
+
+            GMap.NET.MapProviders.OpenStreetMapProvider.UserAgent = "MyTaxiApp/1.0";
+
+
+
+            this.DataContextChanged += (sender, args) =>
+            {
+                // Отписываемся от старого ViewModel (на всякий случай)
+                if (_viewModel != null)
+                {
+                    _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                }
+
+                // Получаем НОВЫЙ ViewModel, который нам передал LoginViewModel
+                _viewModel = DataContext as ClientViewModel;
+
+                // Подписываемся на его события
+                if (_viewModel != null)
+                {
+                    _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+                }
+            };
+
+
+
             _viewModel = DataContext as ClientViewModel;
 
             if (_viewModel != null)

@@ -9,9 +9,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
-    <Window.DataContext>
-        <vm:DriverViewModel/>
-    </Window.DataContext>
+    
 
     <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
         <Grid>

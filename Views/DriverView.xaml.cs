@@ -28,6 +28,9 @@ namespace TaxiWPF.Views
         public DriverView()
         {
             InitializeComponent();
+
+            OpenStreetMapProvider.UserAgent = "MyTaxiApp/1.0";
+
             _viewModel = DataContext as DriverViewModel;
             if (_viewModel != null)
             {

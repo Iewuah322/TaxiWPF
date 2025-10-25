@@ -9,12 +9,15 @@ using System.Windows.Threading;
 using GMap.NET;
 using TaxiWPF.Models;
 using GMap.NET.MapProviders;
+using TaxiWPF.Services;
+using System.Linq;
 
 
 namespace TaxiWPF.ViewModels
 {
     public class DriverViewModel : INotifyPropertyChanged
     {
+        private readonly User _currentUser;
         private Order _selectedOrder;
         private string _statusMessage; 
         private DispatcherTimer _orderTimer;
@@ -22,7 +25,9 @@ namespace TaxiWPF.ViewModels
         private bool _isOnOrder = false;
         private Order _acceptedOrder;
         private string _panelTitle = "Доступные заказы";
+        private readonly Car _currentCar;
 
+        public event Action<PointLatLng, PointLatLng> OnRouteRequired;
         public PointLatLng DriverLocation { get; set; } // Текущее местоположение водителя (заглушка)
         public PointLatLng PassengerLocation { get; set; } // Местоположение клиента из заказа
 
@@ -79,11 +84,16 @@ namespace TaxiWPF.ViewModels
         public ICommand CompleteOrderCommand { get; }
 
         // Событие для оповещения View о необходимости построить маршрут
-        public event Action<PointLatLng, PointLatLng> OnRouteRequired;
 
 
-        public DriverViewModel()
+
+        public DriverViewModel(User user, Car car) // <-- ПРИНИМАЕМ User
         {
+            _currentUser = user;
+            _currentCar = car;
+
+            // --- Весь твой старый код из конструктора ---
+            StatusMessage = $"На линии на {_currentCar.ModelName}. Ожидание заказов...";
             AvailableOrders = new ObservableCollection<Order>();
             AcceptOrderCommand = new RelayCommand(async () => await AcceptOrder(), () => SelectedOrder != null && !IsOnOrder);
             DeclineOrderCommand = new RelayCommand(DeclineOrder, () => SelectedOrder != null && !IsOnOrder);
@@ -92,13 +102,14 @@ namespace TaxiWPF.ViewModels
             DriverLocation = new PointLatLng(55.17, 61.38); // Начальное положение водителя (заглушка)
 
             _orderTimer = new DispatcherTimer();
-            _orderTimer.Interval = TimeSpan.FromSeconds(5); 
-            _orderTimer.Tick += GenerateNewOrder;
+            _orderTimer.Interval = TimeSpan.FromSeconds(5);
+            _orderTimer.Tick += FetchNewOrders;
 
             if (IsOnline)
             {
                 _orderTimer.Start();
             }
+            // ----------------------------------------
         }
 
         private void UpdateStatus()
@@ -116,19 +127,22 @@ namespace TaxiWPF.ViewModels
             }
         }
 
-        private void GenerateNewOrder(object sender, EventArgs e)
+        private void FetchNewOrders(object sender, EventArgs e)
         {
-            var random = new Random();
-            var newOrder = new Order
+            // Не добавляем новые, если водитель занят или не в сети
+            if (!IsOnline || IsOnOrder) return;
+
+            // Получаем заказы с "сервера"
+            var orders = OrderService.Instance.GetAvailableOrders();
+
+            foreach (var order in orders)
             {
-                order_id = random.Next(1000, 9999),
-                PointA = "ул. Ленина, " + random.Next(1, 100),
-                PointB = "пр. Победы, " + random.Next(1, 100),
-                TotalPrice = random.Next(150, 500),
-                Tariff = "Комфорт",
-                OrderClient = new Client { full_name = "Петров Петр" }
-            };
-             AvailableOrders.Add(newOrder);
+                // Проверяем, нет ли у нас уже такого заказа
+                if (!AvailableOrders.Any(o => o.order_id == order.order_id))
+                {
+                    AvailableOrders.Add(order);
+                }
+            }
         }
 
         private async Task AcceptOrder()
@@ -137,6 +151,8 @@ namespace TaxiWPF.ViewModels
 
             AcceptedOrder = SelectedOrder;
             IsOnOrder = true;
+
+            OrderService.Instance.AcceptOrder(AcceptedOrder, new Driver { full_name = _currentUser.username });
 
             StatusMessage = $"Заказ #{AcceptedOrder.order_id} принят. Направляйтесь к клиенту: {AcceptedOrder.PointA}"; 
             
@@ -164,12 +180,22 @@ namespace TaxiWPF.ViewModels
 
         private void CompleteOrder()
         {
+            // --- НОВОЕ: Сообщаем сервису ---
+            OrderService.Instance.CompleteOrder(AcceptedOrder);
+            // ------------------------------
+
             StatusMessage = $"Заказ #{AcceptedOrder.order_id} успешно завершен.";
+
+            // --- ПРЕДЛОЖЕНИЕ: Пополняем баланс ---
+            // Давай сразу добавим пополнение баланса водителю
+            var walletRepo = new Repositories.WalletRepository();
+            walletRepo.AddEarning(_currentUser.user_id, AcceptedOrder.TotalPrice, AcceptedOrder.order_id);
+            // -------------------------------------
+
             AcceptedOrder = null;
             IsOnOrder = false;
-            // Сбрасываем маршрут, можно передать пустые точки
             OnRouteRequired?.Invoke(PointLatLng.Empty, PointLatLng.Empty);
-            UpdateStatus(); // Запускаем таймер, если водитель на линии
+            UpdateStatus();
         }
 
         private async Task<PointLatLng> GetPointFromAddress(string address)

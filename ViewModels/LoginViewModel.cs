@@ -38,15 +38,35 @@ namespace TaxiWPF.ViewModels
             var user = _userRepository.GetUserByUsername(Username);
             if (user != null && user.password == Password)
             {
-                // Успешный вход
                 MessageBox.Show($"Добро пожаловать, {user.username}!");
 
-                // Открываем окно выбора роли
-                var roleSelectionView = new RoleSelectionView();
-                roleSelectionView.Show();
+                if (user.role == "Driver")
+                {
+                    // --- ИЗМЕНЕНИЕ ---
+                    // Открываем новый дашборд вместо карты
+                    var dashboardVM = new DriverDashboardViewModel(user);
+                    var dashboardView = new DriverDashboardView();
+                    dashboardView.DataContext = dashboardVM;
+                    dashboardView.Show();
+                    // -----------------
+                }
+                else // "Client"
+                {
+                    var clientVM = new ClientViewModel(user);
+                    var clientView = new ClientView();
+                    clientView.DataContext = clientVM;
+                    clientView.Show();
+                }
 
-                // Закрываем текущее окно входа
-                Application.Current.Windows[0]?.Close();
+                // Закрываем окно входа
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (window.DataContext == this)
+                    {
+                        window.Close();
+                        break;
+                    }
+                }
             }
             else
             {

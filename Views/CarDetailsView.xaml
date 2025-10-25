@@ -1,0 +1,107 @@
+﻿<Window x:Class="TaxiWPF.Views.CarDetailsView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
+        Title="Детали автомобиля" Height="600" Width="800"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="TitleText" Text="ДЕТАЛИ АВТОМОБИЛЯ" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Content="✕" Command="{Binding CloseCommand}" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+
+            <Grid Grid.Row="1" Margin="15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Margin="0,0,15,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="100"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#FFF" CornerRadius="5" BorderBrush="#DDCAB4" BorderThickness="1">
+                        <Image Source="{Binding SelectedPhotoUrl, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" Stretch="Uniform"/>
+                    </Border>
+
+                    <ListBox Grid.Row="1" ItemsSource="{Binding PhotoGallery}"
+                             SelectedItem="{Binding SelectedPhotoUrl}"
+                             Margin="0,10,0,0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#EEE" CornerRadius="3" Width="80" Height="80" Margin="0,0,10,0"
+                                        BorderBrush="#FFC107" BorderThickness="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolToVis}, ConverterParameter=2}">
+                                    <Image Source="{Binding}" Stretch="UniformToFill"/>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Модель авто" Style="{StaticResource InputLabel}"/>
+                        <TextBox Text="{Binding Car.ModelName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}" />
+
+                        <TextBlock Text="Гос. номер" Style="{StaticResource InputLabel}"/>
+                        <TextBox Text="{Binding Car.LicensePlate, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+
+                        <TextBlock Text="Двигатель" Style="{StaticResource InputLabel}"/>
+                        <TextBox Text="{Binding Car.EngineInfo, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}" />
+
+                        <TextBlock Text="Страховка" Style="{StaticResource InputLabel}"/>
+                        <TextBox Text="{Binding Car.InsuranceInfo, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+
+                        <StackPanel Visibility="Visible">
+                            <TextBlock Text="Главное фото (URL)" Style="{StaticResource InputLabel}"/>
+                            <TextBox Text="{Binding Car.MainImageUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+
+                            <TextBlock Text="Добавить URL фото" Style="{StaticResource InputLabel}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding NewPhotoUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                                <Button Grid.Column="1" Content="+" Command="{Binding AddPhotoUrlCommand}" Style="{StaticResource PrimaryButton}" Width="45" Height="45" Margin="5,0,0,0"/>
+                            </Grid>
+
+                            <Button Content="Удалить выбранное фото" Command="{Binding RemovePhotoUrlCommand}" Style="{StaticResource DeclineButton}" Margin="0,10,0,0"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="15">
+
+                <Button Content="УДАЛИТЬ" Command="{Binding DeleteCarCommand}" Style="{StaticResource DeclineButton}" Margin="0,0,10,0"
+            Visibility="{Binding IsAddMode, Converter={StaticResource InverseBooleanConverter}}"/>
+
+                <Button Content="ОТМЕНА" Command="{Binding CloseCommand}" Style="{StaticResource DeclineButton}" Margin="0,0,10,0"
+            Visibility="{Binding IsAddMode, Converter={StaticResource BoolToVis}}"/>
+
+                <Button Content="СОХРАНИТЬ" Command="{Binding SaveCommand}" Style="{StaticResource AcceptButton}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

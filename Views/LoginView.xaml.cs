@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using TaxiWPF.ViewModels;
+using System.Windows.Media.Animation;
 
 
 namespace TaxiWPF.Views
@@ -48,5 +49,73 @@ namespace TaxiWPF.Views
                 viewModel.Password = (sender as PasswordBox).Password;
             }
         }
+
+        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Проверяем, включен ли наш ToggleButton
+            if (CrazyModeToggle.IsChecked == true)
+            {
+                // Если да - запускаем анимацию,
+                // а она УЖЕ ПОСЛЕ СЕБЯ запустит логин
+                AnimateAndLogin();
+            }
+            else
+            {
+                // Если нет - просто логинимся как обычно
+                ExecuteLoginLogic();
+            }
+        }
+
+
+        private void AnimateAndLogin()
+        {
+            // Настраиваем анимацию
+            var animation = new DoubleAnimation
+            {
+                From = 0,
+                To = 720, // Два полных оборота
+                Duration = TimeSpan.FromSeconds(4.0), // 1.5 секунды
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            // ==== ВАЖНО ====
+            // Мы "подписываемся" на событие ЗАВЕРШЕНИЯ анимации.
+            animation.Completed += (s, e) =>
+            {
+                // Когда анимация закончилась - выполняем вход
+                ExecuteLoginLogic();
+            };
+
+            // Находим наш RotateTransform
+            var transform = RootBorder.RenderTransform as RotateTransform;
+
+            // ==== ВОТ ИСПРАВЛЕНИЕ ====
+            // Добавляем проверку, что transform не null
+            if (transform != null)
+            {
+                // Запускаем анимацию на свойстве "Angle" (Угол)
+                transform.BeginAnimation(RotateTransform.AngleProperty, animation);
+            }
+            else
+            {
+                // Если transform почему-то null, просто логинимся без анимации
+                ExecuteLoginLogic();
+            }
+        }
+
+        private void ExecuteLoginLogic()
+        {
+            // Получаем наш ViewModel из DataContext
+            if (DataContext is LoginViewModel viewModel)
+            {
+                // ...и просто выполняем команду, 
+                // которую мы убрали из XAML
+                if (viewModel.LoginCommand.CanExecute(null))
+                {
+                    viewModel.LoginCommand.Execute(null);
+                }
+            }
+        }
+
     }
 }

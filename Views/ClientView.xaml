@@ -10,13 +10,16 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
-    <Window.DataContext>
-        <vm:ClientViewModel/>
-    </Window.DataContext>
-
     <Border Background="#F0EEE9" CornerRadius="10" BorderBrush="#8D837C" BorderThickness="1">
         <Grid>
-            <TextBlock Text="" Foreground="#8D837C" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Command="{Binding ToggleProfilePanelCommand}" 
+                    Style="{StaticResource AvatarButton}" 
+                    HorizontalAlignment="Left" 
+                    VerticalAlignment="Top" 
+                    Margin="10,5,0,0">
+                <TextBlock Text="👤" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
+
             <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0"/>
 
             <Grid Margin="0,35,0,0">
@@ -25,7 +28,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="Transparent" Margin="15" CornerRadius="8">
+                <Border Grid.Column="0" Background="Transparent" Margin="15" CornerRadius="8"
+                        Visibility="{Binding IsProfilePanelVisible, Converter={StaticResource InverseBooleanConverter}}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="25">
                             <TextBlock Text="Заказать такси" FontSize="26" FontWeight="Bold" Margin="0,0,0,25" Foreground="#4F4A45"/>
@@ -76,6 +80,91 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
+
+                <Border Grid.Column="0" 
+                        Background="#F0EEE9" 
+                        Margin="15" 
+                        CornerRadius="8"
+                        BorderBrush="#8D837C" BorderThickness="1"
+                        Visibility="{Binding IsProfilePanelVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="25">
+                            <TextBlock Text="{Binding CurrentUser.username}" FontSize="26" FontWeight="Bold" Foreground="#4F4A45"/>
+                            <TextBlock Text="{Binding CurrentUser.email}" FontSize="14" Foreground="#8D837C"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="25,0,25,25">
+                            <StackPanel>
+                                <TextBlock Text="ИСТОРИЯ ПОЕЗДОК" FontSize="16" FontWeight="Bold" Foreground="#4F4A45" Margin="0,0,0,10"/>
+
+                                <ListBox ItemsSource="{Binding PastTrips}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="White" CornerRadius="5" Padding="15" Margin="0,0,0,10" BorderBrush="#DDCAB4" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Row="0" Grid.Column="0">
+                                                        <TextBlock FontWeight="Bold" FontSize="16">
+                                                            <Run Text="Поездка #"/>
+                                                            <Run Text="{Binding order_id}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding PointA, StringFormat={}От: {0}}" TextTrimming="CharacterEllipsis" Foreground="#4F4A45"/>
+                                                        <TextBlock Text="{Binding PointB, StringFormat={}До: {0}}" TextTrimming="CharacterEllipsis" Foreground="#4F4A45"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TotalPrice, StringFormat={}{0:C}, ConverterCulture=ru-RU}" 
+                                                               FontSize="22" FontWeight="Bold" Foreground="#FFC107" VerticalAlignment="Center"/>
+
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0" Foreground="#8D837C">
+                                                        <Run Text="Водитель:"/>
+                                                        <Run Text="{Binding AssignedDriver.full_name, FallbackValue='-'}"/>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <ContentPresenter/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                </ListBox>
+
+                                <Button Content="Настройки (неактивно)" Style="{StaticResource PrimaryButton}" IsEnabled="False" Margin="0,20,0,0"/>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
             </Grid>
         </Grid>
     </Border>
