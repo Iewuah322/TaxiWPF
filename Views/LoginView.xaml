@@ -1,0 +1,55 @@
+﻿<Window x:Class="TaxiWPF.Views.LoginView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
+        Title="Вход в систему" Height="500" Width="420"
+        WindowStartupLocation="CenterScreen" 
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.DataContext>
+        <vm:LoginViewModel/>
+    </Window.DataContext>
+
+    <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="TAXIWPF" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+
+            <Border Grid.Row="1" Background="#FFFFFF" Margin="2,0,2,2" CornerRadius="0,0,10,10">
+                <StackPanel Margin="40,20">
+                    <TextBlock Text="Авторизация" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30" Foreground="#333333"/>
+
+                    <TextBlock Text="Имя пользователя" Style="{StaticResource InputLabel}"/>
+                    <Grid>
+                        <TextBox Name="UsernameTextBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                        <TextBlock Text="👤" IsHitTestVisible="False" Style="{StaticResource InputFieldIcon}"/>
+                    </Grid>
+
+                    <TextBlock Text="Пароль" Style="{StaticResource InputLabel}"/>
+                    <Grid>
+                        <PasswordBox Name="PasswordBox" Style="{StaticResource PasswordField}"/>
+                        <TextBlock Text="🔑" IsHitTestVisible="False" Style="{StaticResource InputFieldIcon}"/>
+                    </Grid>
+
+                    <Button Content="ВОЙТИ" Command="{Binding LoginCommand}" Style="{StaticResource PrimaryButton}" Margin="0,30,0,0"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,25,0,0">
+                        <TextBlock>
+                            <Hyperlink Command="{Binding GoToRegisterCommand}" Style="{StaticResource CustomHyperlink}">Регистрация</Hyperlink>
+                        </TextBlock>
+                        <TextBlock Text="|" VerticalAlignment="Center" Margin="10,0" Foreground="#BDBDBD"/>
+                        <TextBlock>
+                            <Hyperlink Command="{Binding GoToRecoveryCommand}" Style="{StaticResource CustomHyperlink}">Забыли пароль?</Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,74 @@
+﻿<Window x:Class="TaxiWPF.Views.DriverView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
+        xmlns:converters="clr-namespace:TaxiWPF.Converters"
+        xmlns:gmaps="clr-namespace:GMap.NET.WindowsPresentation;assembly=GMap.NET.WindowsPresentation"
+        Title="Экран водителя" Height="650" Width="1000"
+        WindowStartupLocation="CenterScreen" MinWidth="800" MinHeight="600"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.DataContext>
+        <vm:DriverViewModel/>
+    </Window.DataContext>
+
+    <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
+        <Grid>
+            <TextBlock Text="" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0"/>
+
+            <Grid Margin="0,35,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="400"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="Transparent" Margin="15" CornerRadius="8">
+                    <DockPanel Margin="20">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,20">
+                            <TextBlock Text="{Binding PanelTitle}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Foreground="#333333"/>
+                            <ToggleButton IsChecked="{Binding IsOnline}" Style="{StaticResource StatusToggleStyle}" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Grid DockPanel.Dock="Top" Visibility="{Binding IsOnOrder, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border Background="#FFFFFF" CornerRadius="5" Padding="20">
+                                <StackPanel>
+                                    <TextBlock FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#333333">
+                                        <Run Text="ВЫПОЛНЕНИЕ ЗАКАЗА #"/>
+                                        <Run Text="{Binding AcceptedOrder.order_id}"/>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}"><Run Text="Клиент:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.OrderClient.full_name}"/></TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis"><Run Text="От:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointA}"/></TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis"><Run Text="До:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointB}"/></TextBlock>
+                                    <TextBlock Text="{Binding AcceptedOrder.TotalPrice, StringFormat={}{0:C}, ConverterCulture=ru-RU}" FontSize="28" FontWeight="Bold" Foreground="#FFC107" HorizontalAlignment="Right" Margin="0,10,0,0"/>
+                                    <Button Content="ЗАВЕРШИТЬ ЗАКАЗ" Command="{Binding CompleteOrderCommand}" Style="{StaticResource CompleteButton}" Margin="0,20,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Grid DockPanel.Dock="Top" Visibility="{Binding IsOnOrder, Converter={StaticResource InverseBooleanConverter}}">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="ПРИНЯТЬ" Command="{Binding AcceptOrderCommand}" Style="{StaticResource AcceptButton}" Margin="0,0,5,0"/>
+                                    <Button Grid.Column="1" Content="ОТКЛОНИТЬ" Command="{Binding DeclineOrderCommand}" Style="{StaticResource DeclineButton}" Margin="5,0,0,0"/>
+                                </Grid>
+                                <ListBox ItemsSource="{Binding AvailableOrders}" SelectedItem="{Binding SelectedOrder}" Style="{StaticResource OrdersListBox}" ItemContainerStyle="{StaticResource OrderCard}"/>
+                            </DockPanel>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+
+                <Grid Grid.Column="1" Margin="0,15,15,15">
+                    <Border CornerRadius="8" Background="#EAEAEA">
+                        <gmaps:GMapControl x:Name="MainMap" Zoom="12" MaxZoom="18" MinZoom="5" MouseWheelZoomType="MousePositionWithoutCenter" CanDragMap="True" />
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
