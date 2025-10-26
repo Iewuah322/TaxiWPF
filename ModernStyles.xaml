@@ -5,6 +5,10 @@
     <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    <converters:InverseBooleanConverter x:Key="InverseBoolToVis"/>
+    <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+    <converters:RatingStarConverter x:Key="RatingStarConverter"/>
 
     <Style x:Key="CloseButton" TargetType="Button">
         <Setter Property="Width" Value="30"/>
@@ -32,6 +36,31 @@
         </Setter>
     </Style>
 
+    <Style x:Key="RatingButtonStyle" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Margin" Value="5,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                    <Binding Path="DataContext.CurrentRating"
+                     RelativeSource="{RelativeSource Self}"/>
+                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                </MultiBinding>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#FFD700"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
 
     <Style x:Key="AvatarButton" TargetType="Button">
         <Setter Property="Width" Value="30"/>
@@ -616,6 +645,19 @@
         </Setter>
     </Style>
 
+
+    <Style x:Key="CustomHyperlinkButton" TargetType="Button">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <TextBlock Style="{StaticResource CustomHyperlink}">
+                    <Run Text="{TemplateBinding Content}"/>
+                    </TextBlock>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="{x:Type ScrollViewer}">
         <Setter Property="Template">
             <Setter.Value>
@@ -655,6 +697,70 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+
+    <Style x:Key="CustomCheckBoxStyle" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="#4F4A45"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="checkBoxBorder" Width="18" Height="18" BorderBrush="#FFC107" BorderThickness="2" CornerRadius="3" Background="Transparent" VerticalAlignment="Center">
+                            <TextBlock x:Name="checkMark" Text="✔" Foreground="#FFC107" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="checkBoxBorder" Property="Background" Value="#FFF9E0"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#FFD700"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <Style x:Key="RatingCriteriaToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="Foreground" Value="#4F4A45"/>
+        <Setter Property="BorderBrush" Value="#DDCAB4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        
+        <Setter Property="Padding" Value="15,8"/>
+        <Setter Property="Margin" Value="5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{Binding Path=CornerRadius, RelativeSource={RelativeSource TemplatedParent}}"
+                       
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="#FFF9E0"/>
+                <Setter Property="BorderBrush" Value="#FFC107"/>
+                <Setter Property="Foreground" Value="#A8986B"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="#FFC107"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
 

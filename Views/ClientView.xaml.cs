@@ -82,6 +82,18 @@ namespace TaxiWPF.Views
             MainMap.MouseLeftButtonDown += MainMap_PreviewMouseLeftButtonDown;
         }
 
+        private void RatingButton_Checked(object sender, RoutedEventArgs e)
+        {
+            // Проверяем ViewModel
+            if (_viewModel == null) return;
+
+            if (sender is RadioButton rb && rb.Tag is string ratingStr && int.TryParse(ratingStr, out int rating))
+            {
+                // Напрямую устанавливаем рейтинг в ViewModel
+                _viewModel.CurrentRating = rating;
+            }
+        }
+
         private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
@@ -94,6 +106,8 @@ namespace TaxiWPF.Views
         {
             Close();
         }
+
+        
 
         private void MainMap_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -161,6 +175,13 @@ namespace TaxiWPF.Views
 
         private void MainMap_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+
+            if (_viewModel == null || _viewModel.CurrentOrderState != ViewModels.OrderState.Idle)
+            {
+                _isDragging = false; // Сбрасываем флаг перетаскивания
+                return; // Выходим из метода
+            }
+
             // Если это не было перетаскивание, то это клик
             if (!_isDragging)
             {

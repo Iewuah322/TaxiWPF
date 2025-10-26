@@ -11,11 +11,24 @@ using GMap.NET;
 using TaxiWPF.Models;
 using TaxiWPF.Services;
 using GMap.NET.MapProviders;
+using System.Threading;
+using System.Windows;
 
 
 
 namespace TaxiWPF.ViewModels
 {
+
+    public enum OrderState
+    {
+        Idle,           // Исходное состояние
+        Searching,      // Идет поиск
+        DriverEnRoute,  // Водитель едет
+        DriverArrived,  // Водитель прибыл
+        TripInProgress, // Поездка идет
+        TripCompleted   // Поездка завершена
+    }
+
     public class ClientViewModel : INotifyPropertyChanged
     {
         private string _fromAddress;
@@ -29,6 +42,82 @@ namespace TaxiWPF.ViewModels
         private double _distanceKm;
         private User _currentUser;
         private bool _isProfilePanelVisible = false;
+        private OrderState _currentOrderState = OrderState.Idle;
+        private Order _currentOrder; // Храним текущий заказ
+        private Timer _driverArrivalTimer;
+        private Timer _tripCompletionTimer;
+        private int _driverDistance;
+        private int _currentRating = 0;
+        public bool IsInputMode => CurrentOrderState == OrderState.Idle;
+        public bool IsOrderSummaryVisible => CurrentOrderState != OrderState.Idle && CurrentOrderState != OrderState.TripCompleted;
+        public bool IsSearchingState => CurrentOrderState == OrderState.Searching;
+
+        // Additional Rating Criteria
+        private bool _wasPolite;
+        private bool _wasClean;
+        private bool _goodDriving;
+        public bool WasPolite { get => _wasPolite; set { _wasPolite = value; OnPropertyChanged(); } }
+        public bool WasClean { get => _wasClean; set { _wasClean = value; OnPropertyChanged(); } }
+        public bool GoodDriving { get => _goodDriving; set { _goodDriving = value; OnPropertyChanged(); } }
+
+
+        public ICommand CancelSearchCommand { get; }
+        public ICommand SkipRatingCommand { get; }
+
+
+
+
+        public OrderState CurrentOrderState
+        {
+            get => _currentOrderState;
+            set { _currentOrderState = value; OnPropertyChanged(); UpdateButtonStates(); }
+        }
+
+        private bool CanFindTaxi()
+        {
+            // Заказывать можно только если нет активного заказа
+            return CurrentOrderState == OrderState.Idle &&
+                   !string.IsNullOrWhiteSpace(FromAddress) &&
+                   !string.IsNullOrWhiteSpace(ToAddress);
+        }
+
+        // Вспомогательный метод для обновления CanExecute кнопок
+        private void UpdateButtonStates()
+        {
+            OnPropertyChanged(nameof(IsStartTripButtonVisible));
+            OnPropertyChanged(nameof(IsRatingVisible));
+            OnPropertyChanged(nameof(CanRequestNewOrder));
+            OnPropertyChanged(nameof(IsInputMode)); // Trigger updates for these too
+            OnPropertyChanged(nameof(IsOrderSummaryVisible));
+            OnPropertyChanged(nameof(IsSearchingState));
+            (FindTaxiCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (CancelSearchCommand as RelayCommand)?.RaiseCanExecuteChanged(); // Add this
+        }
+
+        public Order CurrentOrder
+        {
+            get => _currentOrder;
+            set { _currentOrder = value; OnPropertyChanged(); }
+        }
+
+        // Текст типа "Иванов Иван (Kia Rio) - 3 мин до вас"
+        public string DriverInfoText { get; private set; }
+
+        public bool IsStartTripButtonVisible => CurrentOrderState == OrderState.DriverArrived;
+        public bool IsRatingVisible => CurrentOrderState == OrderState.TripCompleted;
+        public bool CanRequestNewOrder => CurrentOrderState == OrderState.Idle;
+
+        public int CurrentRating
+        {
+            get => _currentRating;
+            set { _currentRating = value; OnPropertyChanged(); }
+        }
+
+        // --- НОВЫЕ КОМАНДЫ ---
+        public ICommand StartTripCommand { get; }
+        public ICommand RateDriverCommand { get; }
+
+
 
 
 
@@ -148,6 +237,10 @@ namespace TaxiWPF.ViewModels
             UpdatePointBCommand = new RelayCommand(async () => await UpdatePointFromAddress(ToAddress, p => PointB = p));
             FindTaxiCommand = new RelayCommand(async () => await FindTaxi(), () => !IsSearching && !string.IsNullOrWhiteSpace(FromAddress) && !string.IsNullOrWhiteSpace(ToAddress));
             // ------------------------------------
+            StartTripCommand = new RelayCommand(StartTrip);
+            RateDriverCommand = new RelayCommand(RateDriver);
+            CancelSearchCommand = new RelayCommand(CancelSearch, () => CurrentOrderState == OrderState.Searching);
+            SkipRatingCommand = new RelayCommand(SkipRating);
         }
 
         private void ToggleProfilePanel()
@@ -219,40 +312,160 @@ namespace TaxiWPF.ViewModels
 
         private async Task FindTaxi()
         {
-            IsSearching = true;
+            CurrentOrderState = OrderState.Searching;
+            // Make sure CanExecute updates for the Cancel button
+            (CancelSearchCommand as RelayCommand)?.RaiseCanExecuteChanged();
             StatusMessage = "Ищем водителя...";
+            // Hide inputs, show summary (will happen via binding)
+            OnPropertyChanged(nameof(IsInputMode));
+            OnPropertyChanged(nameof(IsOrderSummaryVisible));
 
-            // 1. Создаем объект заказа
             var newOrder = new Order
             {
-                PointA = this.FromAddress,
-                PointB = this.ToAddress,
-                Tariff = this.SelectedTariff,
-                TotalPrice = this.TotalPrice,
-                OrderClient = new Client
-                {
-                    // В реальной БД мы бы подгрузили ID, ФИО и телефон клиента.
-                    // В заглушке - просто создадим его на лету из того, что есть.
-                    client_id = this.CurrentUser.user_id,
-                    full_name = this.CurrentUser.username
-                }
+                // ==== Убедись, что эти строки есть ====
+                PointA = this.FromAddress, // Должен быть адрес из TextBox
+                PointB = this.ToAddress,   // Должен быть адрес из TextBox
+                Tariff = this.SelectedTariff, // Должен быть выбранный тариф
+                TotalPrice = this.TotalPrice, // Должна быть рассчитанная цена
+                                              // =====================================
+                OrderClient = new Client { /* ... */ }
             };
 
-            // 2. Отправляем заказ на "сервер"
-            var createdOrder = await OrderService.Instance.SubmitOrder(newOrder);
+            CurrentOrder = await OrderService.Instance.SubmitOrder(newOrder);
 
-            // 3. Обрабатываем ответ
-            if (createdOrder.Status == "Водитель назначен")
+            // --- SIMULATE BETTER DRIVER DATA ---
+            if (CurrentOrder.Status == "Водитель назначен")
             {
-                StatusMessage = $"Водитель найден! {createdOrder.AssignedDriver.full_name} уже едет к вам.";
+
+                CurrentOrder.AssignedDriver.car_model = "Kia Rio (Белая)"; // Заглушка
+                CurrentOrder.AssignedDriver.license_plate = "A 123 AA 77"; // Заглушка
+                CurrentOrder.AssignedDriver.DriverPhotoUrl = "https://avatars.mds.yandex.net/get-autoru-vos/6366648/75f696f7d155a5dc96b1d831fee1c71b/456x342"; // Заглушка
+                CurrentOrder.AssignedDriver.CarPhotoUrl = "https://avatars.mds.yandex.net/i?id=9a7db850ba17a5462f84928aaa94c093_l-5286004-images-thumbs&n=13"; // Заглушка
+                OnPropertyChanged(nameof(CurrentOrder)); // Сообщаем UI об изменениях
+                
+
+                CurrentOrderState = OrderState.DriverEnRoute;
+                _driverDistance = 5;
+                UpdateDriverInfoText();
+                StatusMessage = "Водитель в пути";
+                _driverArrivalTimer = new Timer(DriverArrivedCallback, null, TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
             }
             else
             {
                 StatusMessage = "Свободных водителей не найдено. Попробуйте позже.";
+                CurrentOrderState = OrderState.Idle;
             }
-
-            IsSearching = false;
+    // Update button states again after search completes
+    (CancelSearchCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(IsInputMode));
+            OnPropertyChanged(nameof(IsOrderSummaryVisible));
         }
+
+        private void CancelSearch()
+        {
+            // TODO: In a real app, tell OrderService to stop searching for this order.
+            // OrderService.Instance.CancelOrder(CurrentOrder);
+
+            StatusMessage = "Поиск отменен.";
+            CurrentOrderState = OrderState.Idle;
+            CurrentOrder = null;
+            // Update button states and visibility
+            (CancelSearchCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(IsInputMode));
+            OnPropertyChanged(nameof(IsOrderSummaryVisible));
+            OnPropertyChanged(nameof(IsSearchingState)); // Hide cancel button
+        }
+
+
+
+        private void UpdateDriverInfoText()
+        {
+            if (CurrentOrder?.AssignedDriver != null)
+            {
+                DriverInfoText = $"{CurrentOrder.AssignedDriver.full_name} ({CurrentOrder.AssignedDriver.car_model ?? "Машина"}) - {_driverDistance} мин до вас";
+            }
+            else
+            {
+                DriverInfoText = "";
+            }
+            OnPropertyChanged(nameof(DriverInfoText));
+        }
+
+        // Вызывается по таймеру, когда водитель "прибыл"
+        private void DriverArrivedCallback(object state)
+        {
+            // Важно: Обновляем UI в основном потоке
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                CurrentOrderState = OrderState.DriverArrived;
+                StatusMessage = "Водитель прибыл. Можете начинать поездку.";
+                DriverInfoText = $"{CurrentOrder.AssignedDriver.full_name} ожидает";
+                OnPropertyChanged(nameof(DriverInfoText));
+                _driverArrivalTimer?.Dispose(); // Останавливаем таймер
+            });
+        }
+
+        // Вызывается при нажатии кнопки "Начать поездку"
+        private void StartTrip()
+        {
+            CurrentOrderState = OrderState.TripInProgress;
+            StatusMessage = "Поездка началась...";
+            DriverInfoText = ""; // Убираем инфо о водителе
+            OnPropertyChanged(nameof(DriverInfoText));
+
+            // Запускаем таймер завершения поездки (сработает через 10 секунд)
+            _tripCompletionTimer = new Timer(TripCompletedCallback, null, TimeSpan.FromSeconds(10), Timeout.InfiniteTimeSpan);
+        }
+
+        // Вызывается по таймеру, когда поездка "завершена"
+        private void TripCompletedCallback(object state)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                CurrentOrderState = OrderState.TripCompleted;
+                StatusMessage = "Поездка завершена! Оцените водителя.";
+                _tripCompletionTimer?.Dispose(); // Останавливаем таймер
+                CurrentRating = 0; // Сбрасываем рейтинг
+            });
+        }
+
+        // Вызывается при нажатии на звезду рейтинга
+        private void RateDriver()
+        {
+            // Здесь можно было бы сохранить рейтинг в БД
+            MessageBox.Show($"Спасибо за вашу оценку: {CurrentRating} звезд(ы)!", "Рейтинг");
+            ResetToIdleState();
+
+            // Возвращаемся в исходное состояние
+            CurrentOrderState = OrderState.Idle;
+            CurrentOrder = null;
+            StatusMessage = "";
+            CurrentRating = 0;
+        }
+
+        private void SkipRating()
+        {
+            MessageBox.Show("Оценка пропущена.", "Рейтинг");
+            ResetToIdleState(); // Use the same helper
+        }
+
+
+        private void ResetToIdleState()
+        {
+            CurrentOrderState = OrderState.Idle;
+            CurrentOrder = null;
+            StatusMessage = "";
+            CurrentRating = 0;
+            WasPolite = false;
+            WasClean = false;
+            GoodDriving = false;
+            // Update UI states
+            OnPropertyChanged(nameof(IsInputMode));
+            OnPropertyChanged(nameof(IsOrderSummaryVisible));
+            (CancelSearchCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -321,6 +534,8 @@ namespace TaxiWPF.ViewModels
                 setPointAction(point);
             }
         }
+
+        
 
     }
 }

@@ -16,5 +16,7 @@ namespace TaxiWPF.Models
         public string geo_position { get; set; }
         public decimal? rating { get; set; }
         public string phone { get; set; } = string.Empty;
+        public string DriverPhotoUrl { get; set; } // URL для фото водителя
+        public string CarPhotoUrl { get; set; }
     }
 }

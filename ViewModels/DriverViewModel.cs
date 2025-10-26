@@ -26,6 +26,7 @@ namespace TaxiWPF.ViewModels
         private Order _acceptedOrder;
         private string _panelTitle = "Доступные заказы";
         private readonly Car _currentCar;
+        
 
         public event Action<PointLatLng, PointLatLng> OnRouteRequired;
         public PointLatLng DriverLocation { get; set; } // Текущее местоположение водителя (заглушка)
