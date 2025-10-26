@@ -9,23 +9,30 @@ using TaxiWPF.Models;
 using TaxiWPF.Repositories;
 using System.ComponentModel;
 using Microsoft.Win32;
+using System.Runtime.CompilerServices;
+
 
 namespace TaxiWPF.ViewModels
 {
+    // --- ОБНОВЛЕНО: Добавлен INotifyPropertyChanged ---
     public class RegistrationViewModel : INotifyPropertyChanged
     {
         private readonly UserRepository _userRepository;
         private string _username;
         private string _password;
         private string _email;
+
+        // --- НОВОЕ: Свойства для режима регистрации водителя ---
         private bool _isDriverRegistration = false;
         private string _licensePhotoPath;
         private string _profilePhotoPath;
+        // --------------------------------------------------
 
         public string Username { get => _username; set { _username = value; OnPropertyChanged(nameof(Username)); } }
         public string Password { get => _password; set { _password = value; OnPropertyChanged(nameof(Password)); } }
         public string Email { get => _email; set { _email = value; OnPropertyChanged(nameof(Email)); } }
 
+        // --- НОВОЕ: Свойство для переключения видимости ---
         public bool IsDriverRegistration
         {
             get => _isDriverRegistration;
@@ -38,6 +45,7 @@ namespace TaxiWPF.ViewModels
             }
         }
 
+        // --- НОВОЕ: Свойства для путей к фото ---
         public string LicensePhotoPath
         {
             get => _licensePhotoPath;
@@ -50,22 +58,28 @@ namespace TaxiWPF.ViewModels
             set { _profilePhotoPath = value; OnPropertyChanged(nameof(ProfilePhotoPath)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); }
         }
 
+        // --- НОВЫЕ КОМАНДЫ ---
         public ICommand ToggleRegistrationModeCommand { get; }
         public ICommand SelectLicensePhotoCommand { get; }
         public ICommand SelectProfilePhotoCommand { get; }
+        // -------------------
 
         public ICommand RegisterCommand { get; }
 
         public RegistrationViewModel()
         {
             _userRepository = new UserRepository();
+
+            // --- ОБНОВЛЕНО: Передаем CanRegister ---
             RegisterCommand = new RelayCommand(Register, CanRegister);
 
+            // --- НОВОЕ: Инициализация команд ---
             ToggleRegistrationModeCommand = new RelayCommand(() => IsDriverRegistration = !IsDriverRegistration);
             SelectLicensePhotoCommand = new RelayCommand(SelectLicensePhoto);
             SelectProfilePhotoCommand = new RelayCommand(SelectProfilePhoto);
         }
 
+        // --- ОБНОВЛЕНО: Логика проверки ---
         private bool CanRegister()
         {
             // Общие поля
@@ -107,8 +121,17 @@ namespace TaxiWPF.ViewModels
             if (_userRepository.AddUser(newUser))
             {
                 MessageBox.Show("Регистрация прошла успешно! Теперь вы можете войти.", "Успех");
+
                 // Закрываем окно регистрации
-                foreach (Window window in Application.Current.Windows) { /* ... */ }
+                foreach (Window window in Application.Current.Windows)
+                {
+                    // --- ОБНОВЛЕНО: Ищем окно по DataContext ---
+                    if (window.DataContext == this)
+                    {
+                        window.Close();
+                        break;
+                    }
+                }
             }
             else
             {
@@ -116,6 +139,7 @@ namespace TaxiWPF.ViewModels
             }
         }
 
+        // --- НОВЫЙ МЕТОД: Выбор фото прав ---
         private void SelectLicensePhoto()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -126,6 +150,7 @@ namespace TaxiWPF.ViewModels
             }
         }
 
+        // --- НОВЫЙ МЕТОД: Выбор фото профиля ---
         private void SelectProfilePhoto()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -137,8 +162,9 @@ namespace TaxiWPF.ViewModels
         }
 
 
+        // --- НОВОЕ: Реализация INotifyPropertyChanged ---
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

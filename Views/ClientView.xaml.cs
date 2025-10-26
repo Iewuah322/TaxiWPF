@@ -16,6 +16,7 @@ using GMap.NET;
 using GMap.NET.MapProviders;
 using GMap.NET.WindowsPresentation;
 using TaxiWPF.ViewModels;
+using TaxiWPF.Models;
 
 
 namespace TaxiWPF.Views
@@ -111,6 +112,12 @@ namespace TaxiWPF.Views
 
         private void MainMap_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+
+            if (_viewModel == null || _viewModel.CurrentOrderState != OrderState.Idle)
+            {
+                return; // Не даем ставить точки, если мы не в режиме Idle
+            }
+
             var point = e.GetPosition(MainMap);
             var latLng = MainMap.FromLocalToLatLng((int)point.X, (int)point.Y);
 
@@ -176,7 +183,7 @@ namespace TaxiWPF.Views
         private void MainMap_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
 
-            if (_viewModel == null || _viewModel.CurrentOrderState != ViewModels.OrderState.Idle)
+            if (_viewModel == null || _viewModel.CurrentOrderState != OrderState.Idle)
             {
                 _isDragging = false; // Сбрасываем флаг перетаскивания
                 return; // Выходим из метода

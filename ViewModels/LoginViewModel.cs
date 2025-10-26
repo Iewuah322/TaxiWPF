@@ -59,14 +59,14 @@ namespace TaxiWPF.ViewModels
                 }
 
                 // Закрываем окно входа
-                foreach (Window window in Application.Current.Windows)
-                {
-                    if (window.DataContext == this)
-                    {
-                        window.Close();
-                        break;
-                    }
-                }
+                //foreach (Window window in Application.Current.Windows)
+                //{
+                //  if (window.DataContext == this)
+                // {
+                //    window.Close();
+                //    break;
+                // }
+                //}
             }
             else
             {

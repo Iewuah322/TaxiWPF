@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
         xmlns:converters="clr-namespace:TaxiWPF.Converters"
-        Title="Регистрация" Height="Auto" Width="420" SizeToContent="Height" WindowStartupLocation="CenterScreen"
+        Title="Регистрация" 
+        Height="Auto" Width="420" SizeToContent="Height" WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
@@ -73,19 +74,23 @@
                     </StackPanel>
                     <Button Content="ЗАРЕГИСТРИРОВАТЬСЯ" Command="{Binding RegisterCommand}" Style="{StaticResource PrimaryButton}" Margin="0,30,0,0"/>
 
-                    <Button Command="{Binding ToggleRegistrationModeCommand}" Style="{StaticResource CustomHyperlinkButton}" Margin="0,15,0,0" HorizontalAlignment="Center">
-                        <TextBlock>
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="Хотите стать водителем?"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsDriverRegistration}" Value="True">
-                                            <Setter Property="Text" Value="Зарегистрироваться как клиент"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                    <Button Command="{Binding ToggleRegistrationModeCommand}" 
+        Margin="0,15,0,0" 
+        HorizontalAlignment="Center">
+
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource CustomHyperlinkButton}">
+
+                                <Setter Property="Content" Value="Хотите стать водителем?" />
+
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDriverRegistration}" Value="True">
+                                        <Setter Property="Content" Value="Зарегистрироваться как клиент" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+
                     </Button>
                 </StackPanel>
             </Border>

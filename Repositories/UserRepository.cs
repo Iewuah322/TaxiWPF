@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Data.SqlClient;
 using System.Configuration;
 using TaxiWPF.Models;
+using System.Windows;
 
 namespace TaxiWPF.Repositories
 {
@@ -13,167 +14,230 @@ namespace TaxiWPF.Repositories
     {
         private readonly string _connectionString;
 
-        // --- ЗАГЛУШКА: Временное хранилище в памяти ---
-        private static readonly List<User> _inMemoryUsers = new List<User>
-        {
-            new User { user_id = 1, username = "test_client", password = "123", email = "client@example.com", role = "Client" },
-            new User { user_id = 2, username = "test_driver", password = "123", email = "driver@example.com", role = "Driver" }
-        };
-        private static readonly Dictionary<string, Tuple<int, DateTime>> _inMemoryTokens = new Dictionary<string, Tuple<int, DateTime>>();
-        // ---------------------------------------------
+        // --- ЗАГЛУШКИ УДАЛЕНЫ ---
 
         public UserRepository()
         {
-            //_connectionString = ConfigurationManager.ConnectionStrings["TaxiDB"].ConnectionString;
+            // --- РАСКОММЕНТИРОВАНО И ОСТАВЛЕНО КАК ЕСТЬ ---
+            _connectionString = ConfigurationManager.ConnectionStrings["TaxiDB"].ConnectionString;
         }
 
         public User GetUserByUsername(string username)
         {
-            // --- ЗАГЛУШКА ---
-            return _inMemoryUsers.FirstOrDefault(u => u.username.Equals(username, StringComparison.OrdinalIgnoreCase));
-            // ------------------
-
-            /*
-            // --- РЕАЛЬНЫЙ КОД ДЛЯ БД (раскомментировать, когда будет доступ) ---
             User user = null;
             using (var connection = new SqlConnection(_connectionString))
             {
-                connection.Open();
-                var command = new SqlCommand("SELECT * FROM Users WHERE username = @username", connection);
-                command.Parameters.AddWithValue("@username", username);
-                using (var reader = command.ExecuteReader())
+                try
                 {
-                    if (reader.Read())
+                    connection.Open();
+                    // Выбираем все поля из таблицы Users
+                    var command = new SqlCommand("SELECT * FROM Users WHERE username = @username", connection);
+                    command.Parameters.AddWithValue("@username", username);
+                    using (var reader = command.ExecuteReader())
                     {
-                        user = new User
+                        if (reader.Read())
                         {
-                            user_id = (int)reader["user_id"],
-                            username = reader["username"].ToString(),
-                            password = reader["password"].ToString(),
-                            email = reader["email"].ToString(),
-                            role = reader["role"].ToString()
-                        };
+                            user = new User
+                            {
+                                user_id = (int)reader["user_id"],
+                                username = reader["username"].ToString(),
+                                password = reader["password"].ToString(), // В реальном приложении здесь была бы проверка хеша
+                                email = reader["email"].ToString(),
+                                role = reader["role"].ToString(),
+                                full_name = reader["full_name"] as string,
+                                phone = reader["phone"] as string,
+                                rating = reader["rating"] as decimal?,
+                                // --- ДОБАВЛЕНЫ ПОЛЯ ВОДИТЕЛЯ ---
+                                driver_status = reader["driver_status"] as string,
+                                geo_position = reader["geo_position"] as string,
+                                DriverPhotoUrl = reader["DriverPhotoUrl"] as string,
+                                LicensePhotoPath = reader["LicensePhotoPath"] as string
+                            };
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при получении пользователя: {ex.Message}");
+                    MessageBox.Show($"Ошибка при подключении к БД: {ex.Message}", "Ошибка");
                 }
             }
             return user;
-            */
         }
 
         public bool AddUser(User user)
         {
-            // --- ЗАГЛУШКА ---
-            if (_inMemoryUsers.Any(u => u.username.Equals(user.username, StringComparison.OrdinalIgnoreCase))) return false;
-            user.user_id = _inMemoryUsers.Count + 1;
-            _inMemoryUsers.Add(user);
-            return true;
-            // ------------------
-
-            /*
-            // --- РЕАЛЬНЫЙ КОД ДЛЯ БД ---
             using (var connection = new SqlConnection(_connectionString))
             {
-                connection.Open();
-                // Проверка на уникальность
-                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Users WHERE username = @username OR email = @email", connection);
-                checkCmd.Parameters.AddWithValue("@username", user.username);
-                checkCmd.Parameters.AddWithValue("@email", user.email);
-                if ((int)checkCmd.ExecuteScalar() > 0) return false;
+                try
+                {
+                    connection.Open();
+                    // Используем новую таблицу Users
+                    var command = new SqlCommand(
+                        @"INSERT INTO Users (username, password, email, role, full_name, phone, DriverPhotoUrl, LicensePhotoPath) 
+                          VALUES (@username, @password, @email, @role, @full_name, @phone, @DriverPhotoUrl, @LicensePhotoPath)", connection);
 
-                var command = new SqlCommand("INSERT INTO Users (username, password, email, role) VALUES (@username, @password, @email, @role)", connection);
-                command.Parameters.AddWithValue("@username", user.username);
-                command.Parameters.AddWithValue("@password", user.password);
-                command.Parameters.AddWithValue("@email", user.email);
-                command.Parameters.AddWithValue("@role", user.role);
-                command.ExecuteNonQuery();
-                return true;
+                    command.Parameters.AddWithValue("@username", user.username);
+                    command.Parameters.AddWithValue("@password", user.password); // !!! В РЕАЛЬНОМ ПРИЛОЖЕНИИ ХЕШИРОВАТЬ !!!
+                    command.Parameters.AddWithValue("@email", user.email);
+                    command.Parameters.AddWithValue("@role", user.role);
+                    // Добавляем поля, которые могут быть NULL
+                    command.Parameters.AddWithValue("@full_name", (object)user.full_name ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@phone", (object)user.phone ?? DBNull.Value);
+                    // Добавляем фото (для водителей)
+                    command.Parameters.AddWithValue("@DriverPhotoUrl", (object)user.DriverPhotoUrl ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@LicensePhotoPath", (object)user.LicensePhotoPath ?? DBNull.Value);
+
+
+                    command.ExecuteNonQuery();
+                    return true;
+                }
+                catch (SqlException ex)
+                {
+                    // Обработка ошибок SQL (например, дубликат username или email)
+                    System.Diagnostics.Debug.WriteLine($"Ошибка SQL при добавлении пользователя: {ex.Message}");
+                    MessageBox.Show($"Ошибка при регистрации: {ex.Message}", "Ошибка БД");
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Общая ошибка при добавлении пользователя: {ex.Message}");
+                    MessageBox.Show($"Произошла ошибка: {ex.Message}", "Ошибка");
+                    return false;
+                }
             }
-            */
         }
 
         public string CreatePasswordResetToken(string email)
         {
-            // --- ЗАГЛУШКА ---
-            var user = _inMemoryUsers.FirstOrDefault(u => u.email.Equals(email, StringComparison.OrdinalIgnoreCase));
-            if (user == null) return null;
-
-            string token = Guid.NewGuid().ToString();
-            _inMemoryTokens[token] = Tuple.Create(user.user_id, DateTime.UtcNow.AddHours(1));
-            return token;
-            // ------------------
-
-            /*
-            // --- РЕАЛЬНЫЙ КОД ДЛЯ БД ---
             using (var connection = new SqlConnection(_connectionString))
             {
-                 connection.Open();
-                 var userCmd = new SqlCommand("SELECT user_id FROM Users WHERE email = @email", connection);
-                 userCmd.Parameters.AddWithValue("@email", email);
-                 var userIdObj = userCmd.ExecuteScalar();
-                 if (userIdObj == null) return null;
+                try
+                {
+                    connection.Open();
+                    // Ищем user_id по email
+                    var userCmd = new SqlCommand("SELECT user_id FROM Users WHERE email = @email", connection);
+                    userCmd.Parameters.AddWithValue("@email", email);
+                    var userIdObj = userCmd.ExecuteScalar();
+                    if (userIdObj == null) return null; // Email не найден
 
-                 int userId = (int)userIdObj;
-                 string token = Guid.NewGuid().ToString();
-                 var expiration = DateTime.UtcNow.AddHours(1);
+                    int userId = (int)userIdObj;
+                    string token = Guid.NewGuid().ToString();
+                    var expiration = DateTime.UtcNow.AddHours(1); // Токен действителен 1 час
 
-                 var tokenCmd = new SqlCommand("INSERT INTO PasswordResetTokens (user_id, token, expiration_date) VALUES (@user_id, @token, @expiration)", connection);
-                 tokenCmd.Parameters.AddWithValue("@user_id", userId);
-                 tokenCmd.Parameters.AddWithValue("@token", token);
-                 tokenCmd.Parameters.AddWithValue("@expiration", expiration);
-                 tokenCmd.ExecuteNonQuery();
-                 
-                 return token;
+                    // Записываем токен в новую таблицу PasswordResetTokens
+                    var tokenCmd = new SqlCommand("INSERT INTO PasswordResetTokens (user_id, token, expiration_date) VALUES (@user_id, @token, @expiration)", connection);
+                    tokenCmd.Parameters.AddWithValue("@user_id", userId);
+                    tokenCmd.Parameters.AddWithValue("@token", token);
+                    tokenCmd.Parameters.AddWithValue("@expiration", expiration);
+                    tokenCmd.ExecuteNonQuery();
+
+                    return token;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при создании токена: {ex.Message}");
+                    MessageBox.Show($"Ошибка при запросе сброса пароля: {ex.Message}", "Ошибка БД");
+                    return null;
+                }
             }
-            */
         }
 
         public bool ResetPasswordWithToken(string token, string newPassword)
         {
-            // --- ЗАГЛУШКА ---
-            if (_inMemoryTokens.TryGetValue(token, out var tokenData) && tokenData.Item2 > DateTime.UtcNow)
-            {
-                var user = _inMemoryUsers.FirstOrDefault(u => u.user_id == tokenData.Item1);
-                if (user != null)
-                {
-                    user.password = newPassword;
-                    _inMemoryTokens.Remove(token); // Токен использован
-                    return true;
-                }
-            }
-            return false;
-            // ------------------
-
-            /*
-            // --- РЕАЛЬНЫЙ КОД ДЛЯ БД ---
-            int? userId = null;
             using (var connection = new SqlConnection(_connectionString))
             {
-                connection.Open();
-                var tokenCmd = new SqlCommand("SELECT user_id FROM PasswordResetTokens WHERE token = @token AND expiration_date > @now", connection);
-                tokenCmd.Parameters.AddWithValue("@token", token);
-                tokenCmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
-                var userIdObj = tokenCmd.ExecuteScalar();
-
-                if (userIdObj != null)
+                SqlTransaction transaction = null; // Используем транзакцию для атомарности
+                try
                 {
-                    userId = (int)userIdObj;
+                    connection.Open();
+                    transaction = connection.BeginTransaction();
 
-                    // Обновляем пароль
-                    var updateCmd = new SqlCommand("UPDATE Users SET password = @password WHERE user_id = @user_id", connection);
-                    updateCmd.Parameters.AddWithValue("@password", newPassword);
-                    updateCmd.Parameters.AddWithValue("@user_id", userId.Value);
-                    updateCmd.ExecuteNonQuery();
+                    // Ищем user_id по валидному токену
+                    var tokenCmd = new SqlCommand("SELECT user_id FROM PasswordResetTokens WHERE token = @token AND expiration_date > @now", connection, transaction);
+                    tokenCmd.Parameters.AddWithValue("@token", token);
+                    tokenCmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+                    var userIdObj = tokenCmd.ExecuteScalar();
 
-                    // Удаляем токен
-                    var deleteCmd = new SqlCommand("DELETE FROM PasswordResetTokens WHERE token = @token", connection);
-                    deleteCmd.Parameters.AddWithValue("@token", token);
-                    deleteCmd.ExecuteNonQuery();
-                    
-                    return true;
+                    if (userIdObj != null)
+                    {
+                        int userId = (int)userIdObj;
+
+                        // Обновляем пароль в таблице Users
+                        var updateCmd = new SqlCommand("UPDATE Users SET password = @password WHERE user_id = @user_id", connection, transaction);
+                        updateCmd.Parameters.AddWithValue("@password", newPassword); // !!! В РЕАЛЬНОМ ПРИЛОЖЕНИИ ХЕШИРОВАТЬ !!!
+                        updateCmd.Parameters.AddWithValue("@user_id", userId);
+                        updateCmd.ExecuteNonQuery();
+
+                        // Удаляем использованный токен из PasswordResetTokens
+                        var deleteCmd = new SqlCommand("DELETE FROM PasswordResetTokens WHERE token = @token", connection, transaction);
+                        deleteCmd.Parameters.AddWithValue("@token", token);
+                        deleteCmd.ExecuteNonQuery();
+
+                        transaction.Commit(); // Фиксируем изменения
+                        return true;
+                    }
+                    else
+                    {
+                        // Токен не найден или истек
+                        transaction.Rollback(); // Откатываем (хотя ничего не меняли)
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при сбросе пароля: {ex.Message}");
+                    MessageBox.Show($"Ошибка при сбросе пароля: {ex.Message}", "Ошибка БД");
+                    try { transaction?.Rollback(); } catch { /* Игнорируем ошибки отката */ }
+                    return false;
                 }
             }
-            return false;
-            */
+        }
+
+        // --- ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ (Могут понадобиться) ---
+
+        // Обновление данных пользователя (например, телефона или рейтинга)
+        public bool UpdateUser(User user)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    var command = new SqlCommand(
+                        @"UPDATE Users SET 
+                            email = @email, 
+                            full_name = @full_name, 
+                            phone = @phone, 
+                            rating = @rating, 
+                            driver_status = @driver_status, 
+                            geo_position = @geo_position,
+                            DriverPhotoUrl = @DriverPhotoUrl,
+                            LicensePhotoPath = @LicensePhotoPath
+                          WHERE user_id = @user_id", connection);
+
+                    command.Parameters.AddWithValue("@user_id", user.user_id);
+                    command.Parameters.AddWithValue("@email", user.email);
+                    command.Parameters.AddWithValue("@full_name", (object)user.full_name ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@phone", (object)user.phone ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@rating", (object)user.rating ?? DBNull.Value);
+                    // Водительские поля
+                    command.Parameters.AddWithValue("@driver_status", (object)user.driver_status ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@geo_position", (object)user.geo_position ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@DriverPhotoUrl", (object)user.DriverPhotoUrl ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@LicensePhotoPath", (object)user.LicensePhotoPath ?? DBNull.Value);
+                    // Пароль и username обычно не меняют в общем методе Update
+
+                    int rowsAffected = command.ExecuteNonQuery();
+                    return rowsAffected > 0;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при обновлении пользователя: {ex.Message}");
+                    MessageBox.Show($"Ошибка при обновлении данных: {ex.Message}", "Ошибка БД");
+                    return false;
+                }
+            }
         }
     }
 }

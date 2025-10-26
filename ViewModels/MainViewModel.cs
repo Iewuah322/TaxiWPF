@@ -10,23 +10,27 @@ using System.Windows.Input;
 using TaxiWPF.Models;
 using TaxiWPF.Repositories;
 
+
 namespace TaxiWPF.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private readonly DriverRepository _repository;
-        private Driver _selectedDriver;
+        private readonly UserRepository _repository;
+        private User _selectedDriver;
 
-        public ObservableCollection<Driver> Drivers { get; set; }
-        public Driver SelectedDriver
+        public ObservableCollection<User> Drivers { get; set; }
+        public User SelectedDriver
         {
             get => _selectedDriver;
             set
             {
                 _selectedDriver = value;
                 OnPropertyChanged();
+                (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
+
 
         public ICommand AddCommand { get; }
         public ICommand SaveCommand { get; }
@@ -34,70 +38,89 @@ namespace TaxiWPF.ViewModels
 
         public MainViewModel()
         {
-            _repository = new DriverRepository();
-            Drivers = new ObservableCollection<Driver>();
+            // БЫЛО:
+            // _repository = new DriverRepository();
+            // СТАЛО:
+            _repository = new UserRepository(); // Используем новый репозиторий
+
+            Drivers = new ObservableCollection<User>(); // Используем User
             LoadDrivers();
 
+            // Команды остаются, но CanExecute нужно будет проверить/адаптировать
             AddCommand = new RelayCommand(AddDriver);
-            SaveCommand = new RelayCommand(SaveDriver, CanSave);
+            SaveCommand = new RelayCommand(SaveDriver, CanSaveOrUpdate); // Переименуем CanSave
             DeleteCommand = new RelayCommand(DeleteDriver, CanDelete);
         }
 
         private void LoadDrivers()
         {
-            var drivers = _repository.GetAllDrivers();
+            // --- НУЖНО ДОБАВИТЬ МЕТОД В UserRepository ---
+            // Пока сделаем заглушку, потом добавим метод GetAllUsersByRole
+            // var drivers = _repository.GetAllUsersByRole("Driver");
+            var drivers = new List<User>(); // Временная заглушка
+
             Drivers.Clear();
             foreach (var driver in drivers)
             {
                 Drivers.Add(driver);
             }
+            // Если список пуст, можно добавить нового пустого для редактирования
+            if (Drivers.Count == 0)
+            {
+                // AddDriver(); // Пока не вызываем, чтобы не было рекурсии
+            }
         }
 
         private void AddDriver()
         {
-            SelectedDriver = new Driver
+            SelectedDriver = new User // Создаем User
             {
-                full_name = "",
-                car_model = "",
-                license_plate = "",
-                status = "Свободен",
-                phone = ""
+                role = "Driver", // Устанавливаем роль
+                username = "", // Инициализируем обязательные поля
+                email = "",
+                password = "", // Пароль - ? Возможно, его не нужно здесь задавать
+                driver_status = "Свободен", // Используем driver_status
+                                            // Остальные поля можно оставить пустыми (NULL)
             };
         }
 
         private void SaveDriver()
         {
-            if (SelectedDriver.driver_id == 0)
+            if (SelectedDriver.user_id == 0) // Новый водитель (ID еще не присвоен)
             {
-                
-                _repository.AddDriver(SelectedDriver);
+                // Здесь пароль нужно как-то задать, возможно, генерировать или просить ввести
+                if (string.IsNullOrEmpty(SelectedDriver.password)) SelectedDriver.password = "temp123"; // Временный пароль!
+
+                _repository.AddUser(SelectedDriver);
             }
-            else
+            else // Существующий водитель
             {
-                
-                _repository.UpdateDriver(SelectedDriver);
+                _repository.UpdateUser(SelectedDriver);
             }
-            LoadDrivers(); 
+            LoadDrivers(); // Перезагружаем список
         }
 
-        private bool CanSave() => SelectedDriver != null &&
+        private bool CanSaveOrUpdate() => SelectedDriver != null &&
+                                  !string.IsNullOrWhiteSpace(SelectedDriver.username) &&
+                                  !string.IsNullOrWhiteSpace(SelectedDriver.email) && // Добавили email
+                                                                                      // !string.IsNullOrWhiteSpace(SelectedDriver.password) && // Пароль может быть пустым при обновлении
                                   !string.IsNullOrWhiteSpace(SelectedDriver.full_name) &&
-                                  !string.IsNullOrWhiteSpace(SelectedDriver.car_model) &&
-                                  !string.IsNullOrWhiteSpace(SelectedDriver.license_plate) &&
-                                  !string.IsNullOrWhiteSpace(SelectedDriver.status) &&
                                   !string.IsNullOrWhiteSpace(SelectedDriver.phone);
+        // Поля машины больше не проверяем здесь
 
         private void DeleteDriver()
         {
-            if (SelectedDriver != null && SelectedDriver.driver_id > 0)
+            if (SelectedDriver != null && SelectedDriver.user_id > 0)
             {
-                _repository.DeleteDriver(SelectedDriver.driver_id);
+                // --- НУЖНО ДОБАВИТЬ МЕТОД В UserRepository ---
+                // _repository.DeleteUser(SelectedDriver.user_id);
+
                 LoadDrivers();
                 SelectedDriver = null;
             }
         }
 
-        private bool CanDelete() => SelectedDriver != null && SelectedDriver.driver_id > 0;
+        private bool CanDelete() => SelectedDriver != null && SelectedDriver.user_id > 0;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)

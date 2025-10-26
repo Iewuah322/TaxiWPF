@@ -31,13 +31,27 @@ namespace TaxiWPF.Views
 
             OpenStreetMapProvider.UserAgent = "MyTaxiApp/1.0";
 
-            _viewModel = DataContext as DriverViewModel;
-            if (_viewModel != null)
+            // --- НОВЫЙ БЛОК: Подписка на DataContextChanged ---
+            this.DataContextChanged += (sender, args) =>
             {
-                // Подписываемся на событие для построения маршрута
-                _viewModel.OnRouteRequired += DrawRoute;
-            }
+                // Отписываемся от старого ViewModel (на всякий случай)
+                if (_viewModel != null)
+                {
+                    _viewModel.OnRouteRequired -= DrawRoute;
+                }
 
+                // Получаем НОВЫЙ ViewModel
+                _viewModel = DataContext as DriverViewModel;
+
+                // Подписываемся на его события
+                if (_viewModel != null)
+                {
+                    _viewModel.OnRouteRequired += DrawRoute;
+                }
+            };
+            // --- КОНЕЦ НОВОГО БЛОКА ---
+
+            // (Код ниже у тебя уже есть)
             // Настройка карты
             MainMap.MapProvider = OpenStreetMapProvider.Instance;
             GMaps.Instance.Mode = AccessMode.ServerAndCache;
@@ -48,6 +62,18 @@ namespace TaxiWPF.Views
             MainMap.MouseWheelZoomType = MouseWheelZoomType.MousePositionWithoutCenter;
             MainMap.CanDragMap = true;
             MainMap.DragButton = MouseButton.Right;
+        }
+
+        private void DriverRatingButton_Checked(object sender, RoutedEventArgs e)
+        {
+            // Проверяем ViewModel (он у тебя в _viewModel)
+            if (_viewModel == null) return;
+
+            if (sender is RadioButton rb && rb.Tag is string ratingStr && int.TryParse(ratingStr, out int rating))
+            {
+                // Напрямую устанавливаем рейтинг в ViewModel
+                _viewModel.ClientRating = rating;
+            }
         }
 
         private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)

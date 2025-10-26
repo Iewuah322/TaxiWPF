@@ -24,30 +24,178 @@
 
                 <Border Grid.Column="0" Background="Transparent" Margin="15" CornerRadius="8">
                     <DockPanel Margin="20">
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,20">
-                            <TextBlock Text="{Binding PanelTitle}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Foreground="#333333"/>
-                            <ToggleButton IsChecked="{Binding IsOnline}" Style="{StaticResource StatusToggleStyle}" Margin="20,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <Grid DockPanel.Dock="Top" Visibility="{Binding IsOnOrder, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Grid.Column="0" Text="{Binding PanelTitle}" FontSize="24" FontWeight="Bold" 
+               VerticalAlignment="Center" Foreground="#333333" 
+               TextTrimming="CharacterEllipsis"/>
+
+                            
+
+                            <ToggleButton Grid.Column="1" IsChecked="{Binding IsOnline}" 
+                  Style="{StaticResource StatusToggleStyle}" 
+                  Margin="10,0,0,0" 
+                  VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid DockPanel.Dock="Top" Visibility="{Binding IsRatingClient, Converter={StaticResource BoolToVis}}">
                             <Border Background="#FFFFFF" CornerRadius="5" Padding="20">
                                 <StackPanel>
-                                    <TextBlock FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#333333">
-                                        <Run Text="ВЫПОЛНЕНИЕ ЗАКАЗА #"/>
-                                        <Run Text="{Binding AcceptedOrder.order_id}"/>
-                                    </TextBlock>
-                                    <TextBlock Style="{StaticResource OrderDetailText}"><Run Text="Клиент:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.OrderClient.full_name}"/></TextBlock>
-                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis"><Run Text="От:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointA}"/></TextBlock>
-                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis"><Run Text="До:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointB}"/></TextBlock>
-                                    <TextBlock Text="{Binding AcceptedOrder.TotalPrice, StringFormat={}{0:C}, ConverterCulture=ru-RU}" FontSize="28" FontWeight="Bold" Foreground="#FFC107" HorizontalAlignment="Right" Margin="0,10,0,0"/>
-                                    <Button Content="ЗАВЕРШИТЬ ЗАКАЗ" Command="{Binding CompleteOrderCommand}" Style="{StaticResource CompleteButton}" Margin="0,20,0,0"/>
+                                    <TextBlock Text="Оцените клиента:" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" Foreground="#333"/>
+                                    <TextBlock Text="{Binding AcceptedOrder.OrderClient.full_name}" FontSize="14" Foreground="#555" Margin="0,0,0,15"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,15" HorizontalAlignment="Center">
+
+                                        <RadioButton GroupName="ClientRating" Tag="1" Content="★" FontSize="30" Checked="DriverRatingButton_Checked" 
+                 Cursor="Hand" Margin="5,0">
+                                            <RadioButton.Foreground>
+                                                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                                                    <Binding Path="ClientRating"/>
+                                                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                                                </MultiBinding>
+                                            </RadioButton.Foreground>
+                                            <RadioButton.Template>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                                                </ControlTemplate>
+                                            </RadioButton.Template>
+                                        </RadioButton>
+
+                                        <RadioButton GroupName="ClientRating" Tag="2" Content="★" FontSize="30" Checked="DriverRatingButton_Checked" 
+                 Cursor="Hand" Margin="5,0">
+                                            <RadioButton.Foreground>
+                                                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                                                    <Binding Path="ClientRating"/>
+                                                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                                                </MultiBinding>
+                                            </RadioButton.Foreground>
+                                            <RadioButton.Template>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                                                </ControlTemplate>
+                                            </RadioButton.Template>
+                                        </RadioButton>
+
+                                        <RadioButton GroupName="ClientRating" Tag="3" Content="★" FontSize="30" Checked="DriverRatingButton_Checked" 
+                 Cursor="Hand" Margin="5,0">
+                                            <RadioButton.Foreground>
+                                                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                                                    <Binding Path="ClientRating"/>
+                                                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                                                </MultiBinding>
+                                            </RadioButton.Foreground>
+                                            <RadioButton.Template>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                                                </ControlTemplate>
+                                            </RadioButton.Template>
+                                        </RadioButton>
+
+                                        <RadioButton GroupName="ClientRating" Tag="4" Content="★" FontSize="30" Checked="DriverRatingButton_Checked" 
+                 Cursor="Hand" Margin="5,0">
+                                            <RadioButton.Foreground>
+                                                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                                                    <Binding Path="ClientRating"/>
+                                                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                                                </MultiBinding>
+                                            </RadioButton.Foreground>
+                                            <RadioButton.Template>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                                                </ControlTemplate>
+                                            </RadioButton.Template>
+                                        </RadioButton>
+
+                                        <RadioButton GroupName="ClientRating" Tag="5" Content="★" FontSize="30" Checked="DriverRatingButton_Checked" 
+                 Cursor="Hand" Margin="5,0">
+                                            <RadioButton.Foreground>
+                                                <MultiBinding Converter="{StaticResource RatingStarConverter}">
+                                                    <Binding Path="ClientRating"/>
+                                                    <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                                                </MultiBinding>
+                                            </RadioButton.Foreground>
+                                            <RadioButton.Template>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                                                </ControlTemplate>
+                                            </RadioButton.Template>
+                                        </RadioButton>
+
+                                    </StackPanel>
+
+                                    <Button Content="ОТПРАВИТЬ ОЦЕНКУ" Command="{Binding RateClientCommand}" Style="{StaticResource PrimaryButton}" Margin="0,15,0,0"/>
+                                    <Button Content="Пропустить" Command="{Binding SkipRateClientCommand}"
+        Margin="0,10,0,0"
+        Height="35"
+        Background="#E0DCD5"
+        BorderThickness="0"
+        Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#D0C9BF"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </StackPanel>
                             </Border>
                         </Grid>
 
-                        <Grid DockPanel.Dock="Top" Visibility="{Binding IsOnOrder, Converter={StaticResource InverseBooleanConverter}}">
+                        <Grid DockPanel.Dock="Top" 
+              Visibility="{Binding IsOnOrder, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRatingClient}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <Border Background="#FFFFFF" CornerRadius="5" Padding="20">
+                                <StackPanel>
+                                    <TextBlock FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#333333">
+                        <Run Text="ВЫПОЛНЕНИЕ ЗАКАЗА #"/>
+                        <Run Text="{Binding AcceptedOrder.order_id}"/>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}"><Run Text="Клиент:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.OrderClient.full_name}"/></TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"><Run Text="От:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointA}"/></TextBlock>
+                                    <TextBlock Style="{StaticResource OrderDetailText}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"><Run Text="До:" FontWeight="SemiBold"/> <Run Text="{Binding AcceptedOrder.PointB}"/></TextBlock>
+                                    <TextBlock Text="{Binding AcceptedOrder.TotalPrice, StringFormat={}{0:C}, ConverterCulture=ru-RU}" FontSize="28" FontWeight="Bold" Foreground="#FFC107" HorizontalAlignment="Right" Margin="0,10,0,0"/>
+
+                                    <Button Content="Я ПРИБЫЛ" Command="{Binding ArrivedCommand}" Style="{StaticResource AcceptButton}" Margin="0,20,0,0"
+                            Visibility="{Binding CanShowArrived, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Content="НАЧАТЬ ПОЕЗКУ" Command="{Binding StartTripCommand}" Style="{StaticResource PrimaryButton}" Margin="0,20,0,0"
+                            Visibility="{Binding CanShowStartTrip, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Content="ЗАВЕРШИТЬ ЗАКАЗ" Command="{Binding CompleteOrderCommand}" Style="{StaticResource DeclineButton}" Margin="0,20,0,0"
+                            Visibility="{Binding CanShowCompleteTrip, Converter={StaticResource BoolToVis}}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Grid Visibility="{Binding IsOnOrder, Converter={StaticResource InverseBooleanConverter}}">
                             <DockPanel>
-                                <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                                <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0" 
+                      Visibility="{Binding CanShowAcceptDecline, Converter={StaticResource BoolToVis}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
@@ -55,9 +203,73 @@
                                     <Button Grid.Column="0" Content="ПРИНЯТЬ" Command="{Binding AcceptOrderCommand}" Style="{StaticResource AcceptButton}" Margin="0,0,5,0"/>
                                     <Button Grid.Column="1" Content="ОТКЛОНИТЬ" Command="{Binding DeclineOrderCommand}" Style="{StaticResource DeclineButton}" Margin="5,0,0,0"/>
                                 </Grid>
-                                <ListBox ItemsSource="{Binding AvailableOrders}" SelectedItem="{Binding SelectedOrder}" Style="{StaticResource OrdersListBox}" ItemContainerStyle="{StaticResource OrderCard}"/>
+                                <ListBox ItemsSource="{Binding AvailableOrders}" 
+         SelectedItem="{Binding SelectedOrder}" 
+         Style="{StaticResource OrdersListBox}" 
+         ItemContainerStyle="{StaticResource OrderCard}">
+
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="0" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                    <Run Text="От: "/>
+                    <Run Text="{Binding PointA}"/>
+                                                </TextBlock>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#555" TextTrimming="CharacterEllipsis">
+                    <Run Text="До: "/>
+                    <Run Text="{Binding PointB}"/>
+                                                </TextBlock>
+
+                                                <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" 
+                           Text="{Binding TotalPrice, StringFormat={}{0:C}, ConverterCulture=ru-RU}" 
+                           FontSize="20" FontWeight="Bold" Foreground="#FFC107" 
+                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </DockPanel>
                         </Grid>
+                        <Button Content="‹ Назад в кабинет"
+        DockPanel.Dock="Bottom"
+        Command="{Binding GoToDashboardCommand}"
+        Margin="0,10,0,0"
+        Height="35"
+        Background="#E0DCD5"
+        BorderThickness="0"
+        Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#D0C9BF"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Background" Value="#F5F5F5"/>
+                                                        <Setter Property="Foreground" Value="#A9A29C"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </DockPanel>
                 </Border>
 

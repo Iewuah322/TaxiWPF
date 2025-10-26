@@ -348,7 +348,7 @@ namespace TaxiWPF.ViewModels
                 {
                     if (window.DataContext == this)
                     {
-                        window.Close();
+                        window.Hide(); // <-- Скрываем, а не закрываем
                         break;
                     }
                 }
