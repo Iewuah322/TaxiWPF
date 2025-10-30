@@ -13,6 +13,9 @@ using TaxiWPF.Services;
 using GMap.NET.MapProviders;
 using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
+using TaxiWPF.Repositories;
+using TaxiWPF.Views;
 
 
 namespace TaxiWPF.ViewModels
@@ -21,6 +24,29 @@ namespace TaxiWPF.ViewModels
 
     public class ClientViewModel : INotifyPropertyChanged
     {
+
+
+        private readonly WalletRepository _walletRepository;
+        private bool _isCardPayment = true;
+        private PaymentCard _selectedSavedCard;
+        private bool _rememberCard;
+
+        // Поля для форматирования и валидации
+        private string _cardNumber;
+        private string _cardExpiry;
+        private string _cardCVV;
+        private string _cardNumberError;
+        private string _cardExpiryError;
+        private string _cvvError;
+
+        public bool IsCardPayment { get => _isCardPayment; set { _isCardPayment = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsCashPayment)); } }
+        public bool IsCashPayment { get => !_isCardPayment; set { _isCardPayment = !value; OnPropertyChanged(); OnPropertyChanged(nameof(IsCashPayment)); } }
+        public ObservableCollection<PaymentCard> SavedCards { get; set; }
+
+        public bool IsNewCardSelected => SelectedSavedCard != null && string.IsNullOrEmpty(SelectedSavedCard.CardNumber);
+        public bool RememberCard { get => _rememberCard; set { _rememberCard = value; OnPropertyChanged(); } }
+
+
         // --- Private поля ---
         private string _fromAddress;
         private string _toAddress;
@@ -33,7 +59,11 @@ namespace TaxiWPF.ViewModels
         private User _currentUser;
         private bool _isProfilePanelVisible = false;
         private OrderState _currentOrderState = OrderState.Idle;
-        private Order _currentOrder; // Храним текущий заказ
+        private Order _currentOrder;
+        private DispatcherTimer _orderTimer;
+        private readonly RatingRepository _ratingRepository;
+        private readonly OrderRepository _orderRepository;
+       
 
         // Таймеры УДАЛЕНЫ
 
@@ -46,6 +76,63 @@ namespace TaxiWPF.ViewModels
         public bool WasPolite { get => _wasPolite; set { _wasPolite = value; OnPropertyChanged(); } }
         public bool WasClean { get => _wasClean; set { _wasClean = value; OnPropertyChanged(); } }
         public bool GoodDriving { get => _goodDriving; set { _goodDriving = value; OnPropertyChanged(); } }
+
+        public PaymentCard SelectedSavedCard
+        {
+            get => _selectedSavedCard;
+            set
+            {
+                _selectedSavedCard = value;
+                OnPropertyChanged();
+                LoadCardFromSelection(value);
+                OnPropertyChanged(nameof(IsNewCardSelected));
+            }
+        }
+        public string CardNumber
+        {
+            get => _cardNumber;
+            set
+            {
+                string digits = new string(value.Where(char.IsDigit).ToArray());
+                if (digits.Length > 16) digits = digits.Substring(0, 16);
+                string formatted = string.Join(" ", Enumerable.Range(0, (digits.Length + 3) / 4)
+                    .Select(i => digits.Substring(i * 4, Math.Min(4, digits.Length - i * 4))));
+                _cardNumber = formatted;
+                OnPropertyChanged();
+                ValidateCardNumber();
+            }
+        }
+
+        public string CardExpiry
+        {
+            get => _cardExpiry;
+            set
+            {
+                string digits = new string(value.Where(char.IsDigit).ToArray());
+                if (digits.Length > 4) digits = digits.Substring(0, 4);
+                string formatted = digits;
+                if (digits.Length > 2) formatted = digits.Insert(2, "/");
+                _cardExpiry = formatted;
+                OnPropertyChanged();
+                ValidateCardExpiry();
+            }
+        }
+        public string CardCVV
+        {
+            get => _cardCVV;
+            set
+            {
+                string digits = new string(value.Where(char.IsDigit).ToArray());
+                if (digits.Length > 3) digits = digits.Substring(0, 3);
+                _cardCVV = digits;
+                OnPropertyChanged();
+                ValidateCvv();
+            }
+        }
+        public string CardNumberError { get => _cardNumberError; set { _cardNumberError = value; OnPropertyChanged(); } }
+        public string CardExpiryError { get => _cardExpiryError; set { _cardExpiryError = value; OnPropertyChanged(); } }
+        public string CvvError { get => _cvvError; set { _cvvError = value; OnPropertyChanged(); } }
+
 
         public ICommand CancelSearchCommand { get; }
         public ICommand SkipRatingCommand { get; }
@@ -150,12 +237,21 @@ namespace TaxiWPF.ViewModels
         public ObservableCollection<string> Tariffs { get; set; }
         public ICommand FindTaxiCommand { get; }
 
+        public ICommand ContactSupportCommand { get; }
+        private readonly SupportRepository _supportRepository;
+
         public ClientViewModel(User loggedInUser)
         {
+            _supportRepository = new SupportRepository();
+            _walletRepository = new WalletRepository();
+            SavedCards = new ObservableCollection<PaymentCard>();
+            _supportRepository = new SupportRepository();
+            _ratingRepository = new RatingRepository();
+            _orderRepository = new OrderRepository();
             CurrentUser = loggedInUser;
             PastTrips = new ObservableCollection<Order>();
             ToggleProfilePanelCommand = new RelayCommand(ToggleProfilePanel);
-
+            LoadSavedCards();
             Tariffs = new ObservableCollection<string> { "Эконом", "Комфорт", "Бизнес" };
             SelectedTariff = Tariffs[0];
             UpdatePointACommand = new RelayCommand(async () => await UpdatePointFromAddress(FromAddress, p => PointA = p));
@@ -171,7 +267,51 @@ namespace TaxiWPF.ViewModels
 
             // --- НОВОЕ: Подписываемся на "радиостанцию" ---
             OrderService.Instance.OrderUpdated += OnOrderUpdated;
+            ContactSupportCommand = new RelayCommand(OpenSupportChat);
         }
+
+        private void OpenSupportChat()
+        {
+            // Этот вызов теперь будет работать без ошибок
+            var ticket = SupportService.Instance.GetOrCreateTicketForUser(CurrentUser);
+
+            ticket.UserInfo = CurrentUser;
+
+            var chatView = new SupportChatView(CurrentUser, ticket);
+            chatView.Show();
+        }
+
+        private void LoadSavedCards()
+        {
+            SavedCards.Clear();
+            SavedCards.Add(new PaymentCard { CardNumber = null }); // Для выбора "Новая карта"
+            var cardsFromRepo = _walletRepository.GetSavedCards(CurrentUser.user_id);
+            foreach (var card in cardsFromRepo)
+            {
+                SavedCards.Add(card);
+            }
+            SelectedSavedCard = SavedCards.FirstOrDefault();
+        }
+
+        private void LoadCardFromSelection(PaymentCard card)
+        {
+            if (card == null || string.IsNullOrEmpty(card.CardNumber))
+            {
+                CardNumber = "";
+                CardExpiry = "";
+                CardCVV = "";
+                RememberCard = true;
+            }
+            else
+            {
+                CardNumber = card.CardNumber;
+                CardExpiry = card.CardExpiry;
+                CardCVV = "";
+                RememberCard = false;
+            }
+        }
+
+
 
         // --- НОВЫЙ МЕТОД: Обработчик событий от OrderService ---
         private void OnOrderUpdated(Order updatedOrder)
@@ -205,7 +345,7 @@ namespace TaxiWPF.ViewModels
                         break;
                     case OrderState.TripInProgress:
                         StatusMessage = "Поездка началась...";
-                        DriverInfoText = ""; // Убираем инфо о водителе
+                        DriverInfoText = $"Вас везет {CurrentOrder.AssignedDriver.full_name}";
                         OnPropertyChanged(nameof(DriverInfoText));
                         break;
                     case OrderState.TripCompleted:
@@ -223,8 +363,36 @@ namespace TaxiWPF.ViewModels
         // --- ИЗМЕНЕНО: Метод FindTaxi (убрали async/await и таймеры) ---
         private void FindTaxi()
         {
+            if (!CanRequestNewOrder) return;
+
+            if (IsCardPayment)
+            {
+                bool isCardValid = true;
+                if (IsNewCardSelected)
+                {
+                    ValidateCardNumber(true);
+                    ValidateCardExpiry(true);
+                    ValidateCvv(true);
+                    isCardValid = string.IsNullOrEmpty(CardNumberError) &&
+                                  string.IsNullOrEmpty(CardExpiryError) &&
+                                  string.IsNullOrEmpty(CvvError);
+                }
+
+                if (!isCardValid)
+                {
+                    MessageBox.Show("Пожалуйста, введите корректные данные карты.", "Ошибка оплаты");
+                    return;
+                }
+            }
+
             CurrentOrderState = OrderState.Searching;
             StatusMessage = "Ищем водителя...";
+
+            if (IsCardPayment && IsNewCardSelected && RememberCard)
+            {
+                var card = new PaymentCard { CardNumber = this.CardNumber, CardExpiry = this.CardExpiry };
+                _walletRepository.AddCard(CurrentUser.user_id, card);
+            }
 
             var newOrder = new Order
             {
@@ -232,12 +400,29 @@ namespace TaxiWPF.ViewModels
                 PointB = this.ToAddress,
                 Tariff = this.SelectedTariff,
                 TotalPrice = this.TotalPrice,
-                OrderClient = new Client { client_id = CurrentUser.user_id, full_name = CurrentUser.username } // Заглушка
+                // --- НАЧАЛО ИСПРАВЛЕНИЯ: Добавлен недостающий объект OrderClient ---
+                OrderClient = new Client { client_id = CurrentUser.user_id, full_name = CurrentUser.full_name },
+                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+                PaymentMethod = IsCardPayment ? "Карта" : "Наличные"
             };
 
-            // Просто отправляем заказ и СОХРАНЯЕМ ЕГО (с ID)
-            // Сервис сам оповестит нас через OnOrderUpdated, когда найдет водителя
             CurrentOrder = OrderService.Instance.SubmitOrder(newOrder);
+        }
+
+        private void ValidateCardNumber(bool force = false)
+        {
+            CardNumberError = (string.IsNullOrWhiteSpace(CardNumber) || CardNumber.Replace(" ", "").Length < 16) ? "Введите полный номер карты." : null;
+            if (force) (FindTaxiCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+        private void ValidateCardExpiry(bool force = false)
+        {
+            CardExpiryError = (string.IsNullOrWhiteSpace(CardExpiry) || CardExpiry.Length < 5) ? "Введите срок." : null;
+            if (force) (FindTaxiCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+        private void ValidateCvv(bool force = false)
+        {
+            CvvError = (string.IsNullOrWhiteSpace(CardCVV) || CardCVV.Length < 3) ? "Введите CVV." : null;
+            if (force) (FindTaxiCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         private void CancelSearch()
@@ -249,18 +434,37 @@ namespace TaxiWPF.ViewModels
 
         private void RateDriver()
         {
-            MessageBox.Show($"Спасибо за вашу оценку: {CurrentRating} звезд(ы)!", "Рейтинг");
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            bool success = _ratingRepository.AddRating(
+                CurrentOrder,
+                _currentUser.user_id,
+                CurrentOrder.AssignedDriver.driver_id,
+                CurrentRating,
+                WasPolite,
+                WasClean,
+                GoodDriving
+            );
+
+            if (success)
+            {
+                MessageBox.Show($"Спасибо за вашу оценку: {CurrentRating} звезд(ы)!", "Рейтинг");
+            }
+            else
+            {
+                MessageBox.Show("Не удалось сохранить оценку.", "Ошибка");
+            }
+
             CurrentOrder.ClientRated = true;
-            // (Если и водитель оценил, можно архивировать)
-            // if (CurrentOrder.DriverRated) OrderService.Instance.ArchiveOrder(CurrentOrder);
+            OrderService.Instance.ArchiveOrder(CurrentOrder);
             ResetToIdleState();
+
         }
 
         private void SkipRating()
         {
             MessageBox.Show("Оценка пропущена.", "Рейтинг");
             CurrentOrder.ClientRated = true;
-            // if (CurrentOrder.DriverRated) OrderService.Instance.ArchiveOrder(CurrentOrder);
+            OrderService.Instance.ArchiveOrder(CurrentOrder);
             ResetToIdleState();
         }
 
@@ -295,33 +499,30 @@ namespace TaxiWPF.ViewModels
             IsProfilePanelVisible = !IsProfilePanelVisible;
             if (IsProfilePanelVisible)
             {
+                // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+                // 1. Загружаем самую свежую версию пользователя из БД (с обновленным рейтингом)
+                var updatedUser = new UserRepository().GetUserByUsername(CurrentUser.username);
+                if (updatedUser != null)
+                {
+                    CurrentUser = updatedUser;
+                }
+
+                // 2. Загружаем актуальную историю поездок
                 LoadPastTrips();
+                // --- КОНЕЦ ИЗМЕНЕНИЙ ---
             }
         }
 
         private void LoadPastTrips()
         {
-            // --- ЗАГЛУШКА ---
+            
             PastTrips.Clear();
-            PastTrips.Add(new Order
+            var trips = _orderRepository.GetPastOrdersByClientId(CurrentUser.user_id);
+            foreach (var trip in trips)
             {
-                order_id = 101,
-                PointA = "ул. Ленина, 10",
-                PointB = "пр. Победы, 5",
-                TotalPrice = 250,
-                Status = OrderState.Archived, // Используем enum
-                AssignedDriver = new Driver { full_name = "Петров П." }
-            });
-            PastTrips.Add(new Order
-            {
-                order_id = 102,
-                PointA = "Вокзал",
-                PointB = "Аэропорт",
-                TotalPrice = 800,
-                Status = OrderState.Archived, // Используем enum
-                AssignedDriver = new Driver { full_name = "Сидоров А." }
-            });
-            // ------------------
+                PastTrips.Add(trip);
+            }
+            
         }
 
         private void RecalculatePrice()

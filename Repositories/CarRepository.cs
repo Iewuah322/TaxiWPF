@@ -142,7 +142,7 @@ namespace TaxiWPF.Repositories
                     connection.Open();
                     transaction = connection.BeginTransaction();
 
-                    // 1. Обновляем основную информацию
+                    // Обновляем основную информацию
                     var command = new SqlCommand(
                         @"UPDATE Cars SET 
                             ModelName = @ModelName, 
@@ -150,11 +150,11 @@ namespace TaxiWPF.Repositories
                             MainImageUrl = @MainImageUrl, 
                             EngineInfo = @EngineInfo, 
                             InsuranceInfo = @InsuranceInfo 
-                          WHERE CarId = @CarId AND DriverId = @DriverId", // Добавили DriverId для безопасности
+                          WHERE CarId = @CarId AND DriverId = @DriverId",
                         connection, transaction);
 
                     command.Parameters.AddWithValue("@CarId", car.CarId);
-                    command.Parameters.AddWithValue("@DriverId", car.DriverId); // Убедимся, что водитель меняет свою машину
+                    command.Parameters.AddWithValue("@DriverId", car.DriverId); 
                     command.Parameters.AddWithValue("@ModelName", car.ModelName);
                     command.Parameters.AddWithValue("@LicensePlate", car.LicensePlate);
                     command.Parameters.AddWithValue("@MainImageUrl", (object)car.MainImageUrl ?? DBNull.Value);
@@ -164,19 +164,15 @@ namespace TaxiWPF.Repositories
                     int rowsAffected = command.ExecuteNonQuery();
 
                     if (rowsAffected == 0)
-                    {
-                        // Машина не найдена или принадлежит другому водителю
+                    { 
                         transaction.Rollback();
                         return false;
                     }
 
-                    // 2. Полностью перезаписываем галерею (проще, чем искать разницу)
-                    // 2.1 Удаляем старые фото
                     var deleteGalleryCmd = new SqlCommand("DELETE FROM CarPhotoGallery WHERE CarId = @CarId", connection, transaction);
                     deleteGalleryCmd.Parameters.AddWithValue("@CarId", car.CarId);
                     deleteGalleryCmd.ExecuteNonQuery();
 
-                    // 2.2 Добавляем новые фото
                     if (car.PhotoGallery != null && car.PhotoGallery.Count > 0)
                     {
                         foreach (var photoUrl in car.PhotoGallery)

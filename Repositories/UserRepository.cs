@@ -115,17 +115,21 @@ namespace TaxiWPF.Repositories
                 try
                 {
                     connection.Open();
-                    // Ищем user_id по email
                     var userCmd = new SqlCommand("SELECT user_id FROM Users WHERE email = @email", connection);
                     userCmd.Parameters.AddWithValue("@email", email);
                     var userIdObj = userCmd.ExecuteScalar();
-                    if (userIdObj == null) return null; // Email не найден
+                    if (userIdObj == null) return null;
 
                     int userId = (int)userIdObj;
-                    string token = Guid.NewGuid().ToString();
-                    var expiration = DateTime.UtcNow.AddHours(1); // Токен действителен 1 час
 
-                    // Записываем токен в новую таблицу PasswordResetTokens
+                    // --- НАЧАЛО ИЗМЕНЕНИЯ ---
+                    // Было: string token = Guid.NewGuid().ToString();
+                    // Стало: Генерируем случайное число от 100000 до 999999
+                    string token = new Random().Next(100000, 999999).ToString();
+                    // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+                    var expiration = DateTime.UtcNow.AddHours(1);
+
                     var tokenCmd = new SqlCommand("INSERT INTO PasswordResetTokens (user_id, token, expiration_date) VALUES (@user_id, @token, @expiration)", connection);
                     tokenCmd.Parameters.AddWithValue("@user_id", userId);
                     tokenCmd.Parameters.AddWithValue("@token", token);

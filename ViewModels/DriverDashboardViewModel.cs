@@ -11,6 +11,10 @@ using System.Windows;
 using TaxiWPF.Models;
 using TaxiWPF.Repositories;
 using TaxiWPF.Views;
+using Microsoft.Win32;
+using System.IO;
+using TaxiWPF.Services;
+
 
 
 
@@ -32,8 +36,20 @@ namespace TaxiWPF.ViewModels
         private string _cardNumberError;
         private string _cardExpiryError;
         private string _cvvError;
+        private readonly UserRepository _userRepository;
+        private bool _isProfilePanelVisible = false;
+        public ObservableCollection<ChartDataPoint> DailyEarnings { get; set; }
+        public ObservableCollection<string> YAxisLabels { get; set; }
+        public decimal ChartMaxY { get; set; }
+        public User CurrentUser { get => _currentUser; }
+        public bool IsProfilePanelVisible { get => _isProfilePanelVisible; set { _isProfilePanelVisible = value; OnPropertyChanged(); } }
         public ICommand DeleteCardCommand { get; }
-        
+        public ICommand ToggleProfilePanelCommand { get; }
+        public ICommand UpdateProfilePhotoCommand { get; }
+        public ICommand UpdateLicensePhotoCommand { get; }
+        public ICommand ContactSupportCommand { get; }
+        private readonly SupportRepository _supportRepository;
+
 
         public ObservableCollection<PaymentCard> SavedCards { get; set; }
         private PaymentCard _selectedSavedCard;
@@ -61,7 +77,7 @@ namespace TaxiWPF.ViewModels
         public ObservableCollection<Transaction> RecentWithdrawals { get; set; }
 
         // Данные для графика (Заглушка)
-        public ObservableCollection<KeyValuePair<string, double>> DailyEarnings { get; set; }
+        
 
         public decimal TotalBalance { get => _totalBalance; set { _totalBalance = value; OnPropertyChanged(); } }
         public string CardNumber
@@ -200,16 +216,23 @@ namespace TaxiWPF.ViewModels
         {
             _currentUser = user;
             _walletRepository = new WalletRepository();
+            _userRepository = new UserRepository();
+            _supportRepository = new SupportRepository();
 
             RecentEarnings = new ObservableCollection<Transaction>();
             RecentWithdrawals = new ObservableCollection<Transaction>();
-            DailyEarnings = new ObservableCollection<KeyValuePair<string, double>>();
+            DailyEarnings = new ObservableCollection<ChartDataPoint>();
+            YAxisLabels = new ObservableCollection<string>();
 
             // ==== ВОТ ЭТА СТРОКА, СКОРЕЕ ВСЕГО, ПРОПУЩЕНА ====
             // ==== Убедись, что она здесь есть ====
             SavedCards = new ObservableCollection<PaymentCard>();
             // ===============================================
 
+            ToggleProfilePanelCommand = new RelayCommand(() => IsProfilePanelVisible = !IsProfilePanelVisible);
+            UpdateProfilePhotoCommand = new RelayCommand(() => UpdatePhoto("profile"));
+            UpdateLicensePhotoCommand = new RelayCommand(() => UpdatePhoto("license"));
+            ContactSupportCommand = new RelayCommand(OpenSupportChat);
             ToggleWithdrawPanelCommand = new RelayCommand(() => IsWithdrawPanelVisible = !IsWithdrawPanelVisible);
             WithdrawCommand = new RelayCommand(Withdraw, CanWithdraw);
             GoToMapCommand = new RelayCommand(GoToMap);
@@ -218,6 +241,69 @@ namespace TaxiWPF.ViewModels
             LoadDashboardData();
         }
 
+        private void OpenSupportChat()
+        {
+            // Этот вызов теперь будет работать без ошибок
+            var ticket = SupportService.Instance.GetOrCreateTicketForUser(CurrentUser);
+
+            ticket.UserInfo = CurrentUser;
+
+            var chatView = new SupportChatView(CurrentUser, ticket);
+            chatView.Show();
+        }
+
+        private void UpdatePhoto(string photoType)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "Image files|*.png;*.jpeg;*.jpg" };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string newPath = CopyImageToAppData(openFileDialog.FileName); // Этот метод нужно будет скопировать сюда
+                if (newPath != null)
+                {
+                    if (photoType == "profile")
+                    {
+                        _currentUser.DriverPhotoUrl = newPath;
+                    }
+                    else // license
+                    {
+                        _currentUser.LicensePhotoPath = newPath;
+                    }
+
+                    _userRepository.UpdateUser(_currentUser);
+                    OnPropertyChanged(nameof(CurrentUser)); // Обновляем UI
+                    MessageBox.Show("Фото успешно обновлено!");
+                }
+            }
+        }
+
+        private string CopyImageToAppData(string sourceImagePath)
+        {
+            try
+            {
+                // 1. Определяем папку назначения внутри папки с .exe файлом
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string destFolder = Path.Combine(baseDirectory, "UserData", "Images");
+
+                // 2. Создаем папку, если ее не существует
+                Directory.CreateDirectory(destFolder);
+
+                // 3. Генерируем уникальное имя файла, чтобы избежать конфликтов
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(sourceImagePath);
+                string destinationPath = Path.Combine(destFolder, uniqueFileName);
+
+                // 4. Копируем файл
+                File.Copy(sourceImagePath, destinationPath);
+
+                // 5. Возвращаем ОТНОСИТЕЛЬНЫЙ путь для сохранения в БД
+                return Path.Combine("UserData", "Images", uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении фото: {ex.Message}");
+                return null;
+            }
+        }
+            
         private bool CanDeleteCard()
         {
             // Мы можем удалить карту, только если она выбрана И это не "Новая карта"
@@ -242,62 +328,94 @@ namespace TaxiWPF.ViewModels
 
         private void LoadCardFromSelection(PaymentCard card)
         {
-            if (card == null || string.IsNullOrEmpty(card.CardNumber))
+            if (card == null || card.MaskedName == "Новая карта")
             {
-                // Если выбрали "Новая карта" (или сбросили выбор)
+                // Выбрана "Новая карта"
                 CardNumber = "";
                 CardExpiry = "";
                 CardCVV = "";
-                RememberCard = true; // По умолчанию предлагаем сохранить новую карту
+                RememberCard = true;
             }
             else
             {
-                // Заполняем поля из выбранной карты
+                // Выбрана сохраненная карта
+                // ИСПРАВЛЕНИЕ: Теперь CardNumber будет содержать полный номер из БД
                 CardNumber = card.CardNumber;
                 CardExpiry = card.CardExpiry;
-                CardCVV = ""; // CVV всегда вводим заново
-                RememberCard = false; // Карта уже сохранена
+                CardCVV = "";
+                RememberCard = false;
             }
         }
 
 
-        private void LoadDashboardData()
+        public void LoadDashboardData()
         {
+            // Загрузка баланса, транзакций и карт (этот код у вас уже есть и работает)
             TotalBalance = _walletRepository.GetBalance(_currentUser.user_id);
             var allTransactions = _walletRepository.GetTransactions(_currentUser.user_id);
 
             SavedCards.Clear();
-            // Добавляем "пустую" карту, чтобы можно было ввести новую
-            SavedCards.Add(new PaymentCard { CardNumber = null, CardExpiry = null }); // Отобразится как "Новая карта"
-
-            // Загружаем сохраненные
+            SavedCards.Add(new PaymentCard { MaskedName = "Новая карта" });
             var cardsFromRepo = _walletRepository.GetSavedCards(_currentUser.user_id);
             foreach (var card in cardsFromRepo)
             {
                 SavedCards.Add(card);
             }
 
-
-            // Разделяем на 2 списка для UI
             RecentEarnings.Clear();
             allTransactions.Where(t => t.Type == TransactionType.Earning).Take(5).ToList().ForEach(t => RecentEarnings.Add(t));
 
             RecentWithdrawals.Clear();
             allTransactions.Where(t => t.Type == TransactionType.Withdrawal).Take(3).ToList().ForEach(w => RecentWithdrawals.Add(w));
 
-            // --- Заглушка для Графика ---
+            // --- НАЧАЛО НОВОЙ ЛОГИКИ ДЛЯ ГРАФИКА ---
             DailyEarnings.Clear();
-            var rand = new Random();
+            YAxisLabels.Clear();
+
+            // 1. Получаем реальные данные о заработке из репозитория
+            var earningsData = _walletRepository.GetLastSevenDaysEarnings(_currentUser.user_id);
+
+            // 2. Создаем полную сетку данных за последние 7 дней (даже если заработка не было)
+            var processedEarnings = new List<ChartDataPoint>();
             for (int i = 6; i >= 0; i--)
             {
-                // \n - это перенос строки. Теперь будет "Пт\n25.10"
-                DailyEarnings.Add(new KeyValuePair<string, double>(DateTime.Now.AddDays(-i).ToString("ddd\ndd.MM"), rand.Next(50, 200)));
+                var day = DateTime.Now.AddDays(-i).Date;
+                // Если для этого дня есть запись в БД, берем ее, иначе - 0
+                decimal amount = earningsData.ContainsKey(day) ? earningsData[day] : 0;
+                processedEarnings.Add(new ChartDataPoint
+                {
+                    Label = day.ToString("ddd\ndd.MM"), // Формат: "Пн\n28.10"
+                    Value = amount
+                });
             }
+
+            // 3. Находим максимальное значение в данных для масштабирования графика
+            decimal maxValue = processedEarnings.Any() ? processedEarnings.Max(d => d.Value) : 0;
+            if (maxValue == 0) maxValue = 100; // Минимальная высота шкалы, если заработка не было
+
+            // 4. Вычисляем "красивое" круглое число для верха шкалы (например, 1350 -> 1400)
+            double magnitude = Math.Pow(10, Math.Floor(Math.Log10((double)maxValue)));
+            ChartMaxY = (decimal)(Math.Ceiling((double)maxValue / magnitude) * magnitude);
+            if (ChartMaxY < 100) ChartMaxY = 100; // Минимальная шкала всегда 100
+
+            // 5. Создаем метки для оси Y (верхняя и средняя)
+            YAxisLabels.Add($"{ChartMaxY:N0}");    // Верхняя метка (например, "1 400")
+            YAxisLabels.Add($"{ChartMaxY / 2:N0}"); // Средняя метка (например, "700")
+
+            // 6. Масштабируем высоту каждого столбца относительно максимальной высоты (140px)
+            const double maxBarHeight = 140.0;
+            foreach (var earning in processedEarnings)
+            {
+                // Рассчитываем высоту столбца в пикселях
+                earning.ScaledHeight = ChartMaxY > 0 ? (double)(earning.Value / ChartMaxY) * maxBarHeight : 0;
+                DailyEarnings.Add(earning);
+            }
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ДЛЯ ГРАФИКА ---
         }
 
-        
 
-       
+
+
 
         private void Withdraw()
         {
@@ -362,5 +480,13 @@ namespace TaxiWPF.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        public class ChartDataPoint
+        {
+            public string Label { get; set; }
+            public decimal Value { get; set; }
+            public double ScaledHeight { get; set; }
+        }
+
     }
 }

@@ -6,9 +6,11 @@
     <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-    <converters:InverseBooleanConverter x:Key="InverseBoolToVis"/>
     <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
     <converters:RatingStarConverter x:Key="RatingStarConverter"/>
+    <converters:RelativePathToAbsoluteConverter x:Key="PathToImageConverter"/>
+    <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+    
 
     <Style x:Key="CloseButton" TargetType="Button">
         <Setter Property="Width" Value="30"/>
@@ -63,26 +65,15 @@
     </Style>
 
     <Style x:Key="AvatarButton" TargetType="Button">
-        <Setter Property="Width" Value="30"/>
-        <Setter Property="Height" Value="30"/>
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="40"/>
         <Setter Property="Foreground" Value="#A8986B"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}" CornerRadius="15">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="20">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#E0CA8A"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -564,8 +555,8 @@
                             </Grid.ColumnDefinitions>
 
                             <Border Grid.Column="0" CornerRadius="3" Background="#EEE">
-                                <Image Source="{Binding MainImageUrl, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" 
-                                       Height="70" Stretch="UniformToFill"/>
+                                <Image Source="{Binding MainImageUrl, Converter={StaticResource PathToImageConverter}, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" 
+                                   Height="70" Stretch="UniformToFill"/>
                             </Border>
 
                             <StackPanel Grid.Column="1" Margin="15,0,0,0" VerticalAlignment="Center">
@@ -771,5 +762,15 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="ImagePreviewStyle" TargetType="Border">
+        <Setter Property="Width" Value="200"/>
+        <Setter Property="Height" Value="120"/>
+        <Setter Property="Background" Value="#F0F0F0"/>
+        <Setter Property="CornerRadius" Value="5"/>
+        <Setter Property="BorderBrush" Value="#DDCAB4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Margin" Value="0,10,0,15"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
 
 </ResourceDictionary>

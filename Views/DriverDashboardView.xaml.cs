@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using TaxiWPF.ViewModels;
 
 namespace TaxiWPF.Views
 {
@@ -19,6 +20,17 @@ namespace TaxiWPF.Views
         public DriverDashboardView()
         {
             InitializeComponent();
+            
+            this.IsVisibleChanged += DriverDashboardView_IsVisibleChanged;
+        }
+        private void DriverDashboardView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // Если окно стало видимым и у него есть ViewModel
+            if ((bool)e.NewValue == true && this.DataContext is DriverDashboardViewModel vm)
+            {
+                // Вызываем метод для обновления данных
+                vm.LoadDashboardData();
+            }
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

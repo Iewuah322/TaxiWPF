@@ -10,6 +10,7 @@ using TaxiWPF.Repositories;
 using System.ComponentModel;
 using Microsoft.Win32;
 using System.Runtime.CompilerServices;
+using System.IO;
 
 
 namespace TaxiWPF.ViewModels
@@ -21,6 +22,7 @@ namespace TaxiWPF.ViewModels
         private string _username;
         private string _password;
         private string _email;
+        private string _fullName;
 
         // --- НОВОЕ: Свойства для режима регистрации водителя ---
         private bool _isDriverRegistration = false;
@@ -31,6 +33,7 @@ namespace TaxiWPF.ViewModels
         public string Username { get => _username; set { _username = value; OnPropertyChanged(nameof(Username)); } }
         public string Password { get => _password; set { _password = value; OnPropertyChanged(nameof(Password)); } }
         public string Email { get => _email; set { _email = value; OnPropertyChanged(nameof(Email)); } }
+        public string FullName { get => _fullName; set { _fullName = value; OnPropertyChanged(nameof(FullName)); } }
 
         // --- НОВОЕ: Свойство для переключения видимости ---
         public bool IsDriverRegistration
@@ -82,41 +85,79 @@ namespace TaxiWPF.ViewModels
         // --- ОБНОВЛЕНО: Логика проверки ---
         private bool CanRegister()
         {
-            // Общие поля
             bool baseValid = !string.IsNullOrWhiteSpace(Username) &&
                              !string.IsNullOrWhiteSpace(Password) &&
-                             !string.IsNullOrWhiteSpace(Email) && Email.Contains("@");
+                             !string.IsNullOrWhiteSpace(Email) && Email.Contains("@") &&
+                             !string.IsNullOrWhiteSpace(FullName);
 
-            // Если режим водителя, проверяем и фото
             if (IsDriverRegistration)
             {
+                // Для водителя ОБА фото обязательны
                 return baseValid &&
                        !string.IsNullOrWhiteSpace(LicensePhotoPath) &&
                        !string.IsNullOrWhiteSpace(ProfilePhotoPath);
             }
 
-            // Иначе достаточно базовых полей
+            // Для клиента все фото необязательны
             return baseValid;
         }
+
+        // --- ДОБАВЛЕН НОВЫЙ ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
+        private string CopyImageToAppData(string sourceImagePath)
+        {
+            try
+            {
+                // 1. Определяем папку назначения внутри папки с .exe файлом
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string destFolder = Path.Combine(baseDirectory, "UserData", "Images");
+
+                // 2. Создаем папку, если ее не существует
+                Directory.CreateDirectory(destFolder);
+
+                // 3. Генерируем уникальное имя файла, чтобы избежать конфликтов
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(sourceImagePath);
+                string destinationPath = Path.Combine(destFolder, uniqueFileName);
+
+                // 4. Копируем файл
+                File.Copy(sourceImagePath, destinationPath);
+
+                // 5. Возвращаем ОТНОСИТЕЛЬНЫЙ путь для сохранения в БД
+                return Path.Combine("UserData", "Images", uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении фото: {ex.Message}");
+                return null;
+            }
+        }
+
 
         private void Register()
         {
             var newUser = new User
             {
                 username = this.Username,
-                password = this.Password, // В реальном приложении пароль надо хешировать!
+                password = this.Password,
                 email = this.Email,
-                // --- ИЗМЕНЕНИЕ: Роль зависит от режима ---
+                full_name = this.FullName,
                 role = IsDriverRegistration ? "Driver" : "Client"
             };
 
-            // --- ДОПОЛНИТЕЛЬНО (для водителя) ---
-            // Здесь ты бы передал пути к фото (LicensePhotoPath, ProfilePhotoPath)
-            // в метод AddUser или сохранил бы их отдельно, связав с user_id.
-            // В нашей заглушке UserRepository.AddUser это пока не учитывает.
-            // string licensePath = this.LicensePhotoPath;
-            // string profilePath = this.ProfilePhotoPath;
-            // ---------------------------------------
+            // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+            // Присваиваем пути к фото, если это регистрация водителя
+            if (IsDriverRegistration)
+            {
+                newUser.LicensePhotoPath = this.LicensePhotoPath;
+                newUser.DriverPhotoUrl = this.ProfilePhotoPath; // Эта строка исправляет ошибку
+            }
+
+            newUser.DriverPhotoUrl = this.ProfilePhotoPath;
+            if (IsDriverRegistration)
+            {
+                newUser.LicensePhotoPath = this.LicensePhotoPath;
+            }
+
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
             if (_userRepository.AddUser(newUser))
             {
@@ -125,7 +166,6 @@ namespace TaxiWPF.ViewModels
                 // Закрываем окно регистрации
                 foreach (Window window in Application.Current.Windows)
                 {
-                    // --- ОБНОВЛЕНО: Ищем окно по DataContext ---
                     if (window.DataContext == this)
                     {
                         window.Close();
@@ -146,7 +186,8 @@ namespace TaxiWPF.ViewModels
             openFileDialog.Filter = "Image files (*.png;*.jpeg;*.jpg)|*.png;*.jpeg;*.jpg|All files (*.*)|*.*";
             if (openFileDialog.ShowDialog() == true)
             {
-                LicensePhotoPath = openFileDialog.FileName;
+                // ИЗМЕНЕНО: Вызываем новый метод для копирования
+                LicensePhotoPath = CopyImageToAppData(openFileDialog.FileName);
             }
         }
 
@@ -157,7 +198,8 @@ namespace TaxiWPF.ViewModels
             openFileDialog.Filter = "Image files (*.png;*.jpeg;*.jpg)|*.png;*.jpeg;*.jpg|All files (*.*)|*.*";
             if (openFileDialog.ShowDialog() == true)
             {
-                ProfilePhotoPath = openFileDialog.FileName;
+                // БЫЛО ПРОПУЩЕНО: Присваиваем результат копирования свойству
+                ProfilePhotoPath = CopyImageToAppData(openFileDialog.FileName);
             }
         }
 

@@ -18,5 +18,6 @@ namespace TaxiWPF.Models
         public string Description { get; set; }
         public decimal Amount { get; set; } // Положительное для Earning, отрицательное для Withdrawal
         public TransactionType Type { get; set; }
+        public string PaymentMethod { get; set; }
     }
 }

@@ -35,7 +35,7 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="#FFF" CornerRadius="5" BorderBrush="#DDCAB4" BorderThickness="1">
-                        <Image Source="{Binding SelectedPhotoUrl, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" Stretch="Uniform"/>
+                        <Image Source="{Binding Car.MainImageUrl, Converter={StaticResource PathToImageConverter}, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" Stretch="Uniform"/>
                     </Border>
 
                     <ListBox Grid.Row="1" ItemsSource="{Binding PhotoGallery}"
@@ -49,8 +49,8 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="#EEE" CornerRadius="3" Width="80" Height="80" Margin="0,0,10,0"
-                                        BorderBrush="#FFC107" BorderThickness="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolToVis}, ConverterParameter=2}">
-                                    <Image Source="{Binding}" Stretch="UniformToFill"/>
+                                        BorderBrush="#FFC107">
+                                    <Image Source="{Binding ., Converter={StaticResource PathToImageConverter}}" Stretch="UniformToFill"/>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -71,34 +71,23 @@
                         <TextBlock Text="Страховка" Style="{StaticResource InputLabel}"/>
                         <TextBox Text="{Binding Car.InsuranceInfo, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
 
-                        <StackPanel Visibility="Visible">
-                            <TextBlock Text="Главное фото (URL)" Style="{StaticResource InputLabel}"/>
-                            <TextBox Text="{Binding Car.MainImageUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
+                        <TextBlock Text="Главное фото" Style="{StaticResource InputLabel}"/>
+                        <Button Content="Выбрать файл..." Command="{Binding SelectMainPhotoCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10"/>
 
-                            <TextBlock Text="Добавить URL фото" Style="{StaticResource InputLabel}"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding NewPhotoUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
-                                <Button Grid.Column="1" Content="+" Command="{Binding AddPhotoUrlCommand}" Style="{StaticResource PrimaryButton}" Width="45" Height="45" Margin="5,0,0,0"/>
-                            </Grid>
+                        <TextBlock Text="Добавить фото в галерею" Style="{StaticResource InputLabel}"/>
+                        <Button Content="Добавить фото..." Command="{Binding AddPhotoToGalleryCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10"/>
 
-                            <Button Content="Удалить выбранное фото" Command="{Binding RemovePhotoUrlCommand}" Style="{StaticResource DeclineButton}" Margin="0,10,0,0"/>
-                        </StackPanel>
-
+                        <Button Content="Удалить выбранное фото" Command="{Binding RemovePhotoUrlCommand}" Style="{StaticResource DeclineButton}" Margin="0,10,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="15">
-
                 <Button Content="УДАЛИТЬ" Command="{Binding DeleteCarCommand}" Style="{StaticResource DeclineButton}" Margin="0,0,10,0"
-            Visibility="{Binding IsAddMode, Converter={StaticResource InverseBooleanConverter}}"/>
+                        Visibility="{Binding IsAddMode, Converter={StaticResource InverseBooleanConverter}}"/>
 
                 <Button Content="ОТМЕНА" Command="{Binding CloseCommand}" Style="{StaticResource DeclineButton}" Margin="0,0,10,0"
-            Visibility="{Binding IsAddMode, Converter={StaticResource BoolToVis}}"/>
+                        Visibility="{Binding IsAddMode, Converter={StaticResource BoolToVis}}"/>
 
                 <Button Content="СОХРАНИТЬ" Command="{Binding SaveCommand}" Style="{StaticResource AcceptButton}"/>
             </StackPanel>

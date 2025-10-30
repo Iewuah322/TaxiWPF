@@ -31,13 +31,11 @@ namespace TaxiWPF.Repositories
                 try
                 {
                     connection.Open();
-                    // Суммируем поле Amount для конкретного водителя
+                    // ИЗМЕНЕН ЗАПРОС: Добавлено условие WHERE PaymentMethod = 'Карта'
                     var command = new SqlCommand(
-                        "SELECT ISNULL(SUM(Amount), 0) FROM WalletTransactions WHERE driver_id = @driverId",
+                        "SELECT ISNULL(SUM(Amount), 0) FROM WalletTransactions WHERE driver_id = @driverId AND PaymentMethod = 'Карта'",
                         connection);
                     command.Parameters.AddWithValue("@driverId", driverId);
-
-                    // ExecuteScalar возвращает одно значение (первая ячейка результата)
                     balance = (decimal)command.ExecuteScalar();
                 }
                 catch (Exception ex)
@@ -47,6 +45,44 @@ namespace TaxiWPF.Repositories
                 }
             }
             return balance;
+        }
+
+
+        public void AddCard(int userId, PaymentCard card)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    // Генерация маски
+                    string cleanCardNumber = new string(card.CardNumber.Where(char.IsDigit).ToArray());
+                    string maskedNumber = "Карта **** " + (cleanCardNumber.Length > 4 ? cleanCardNumber.Substring(cleanCardNumber.Length - 4) : cleanCardNumber);
+
+                    // Проверяем, есть ли уже такая маска
+                    var checkCardCmd = new SqlCommand("SELECT COUNT(*) FROM PaymentCards WHERE driver_id = @userId AND MaskedNumber = @MaskedNumber", connection);
+                    checkCardCmd.Parameters.AddWithValue("@userId", userId);
+                    checkCardCmd.Parameters.AddWithValue("@MaskedNumber", maskedNumber);
+
+                    if ((int)checkCardCmd.ExecuteScalar() == 0)
+                    {
+                        // ИЗМЕНЕН ЗАПРОС: Добавлено сохранение FullCardNumber
+                        var addCardCmd = new SqlCommand(
+                           @"INSERT INTO PaymentCards (driver_id, MaskedNumber, CardExpiry, FullCardNumber) 
+                      VALUES (@userId, @MaskedNumber, @CardExpiry, @FullCardNumber)", connection);
+                        addCardCmd.Parameters.AddWithValue("@userId", userId);
+                        addCardCmd.Parameters.AddWithValue("@MaskedNumber", maskedNumber);
+                        addCardCmd.Parameters.AddWithValue("@CardExpiry", card.CardExpiry);
+                        addCardCmd.Parameters.AddWithValue("@FullCardNumber", cleanCardNumber); // Сохраняем чистый номер
+                        addCardCmd.ExecuteNonQuery();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при сохранении карты: {ex.Message}");
+                    MessageBox.Show($"Не удалось сохранить карту: {ex.Message}", "Ошибка БД");
+                }
+            }
         }
 
         // Получаем список транзакций (например, последние 20)
@@ -90,6 +126,7 @@ namespace TaxiWPF.Repositories
         }
 
         // Получаем сохраненные карты водителя
+        // ЗАМЕНИТЕ ЭТОТ МЕТОД ЦЕЛИКОМ
         public List<PaymentCard> GetSavedCards(int driverId)
         {
             var cards = new List<PaymentCard>();
@@ -98,7 +135,8 @@ namespace TaxiWPF.Repositories
                 try
                 {
                     connection.Open();
-                    var command = new SqlCommand("SELECT MaskedNumber, CardExpiry FROM PaymentCards WHERE driver_id = @driverId", connection);
+                    // Запрашиваем все три нужных поля из БД
+                    var command = new SqlCommand("SELECT MaskedNumber, CardExpiry, FullCardNumber FROM PaymentCards WHERE driver_id = @driverId", connection);
                     command.Parameters.AddWithValue("@driverId", driverId);
 
                     using (var reader = command.ExecuteReader())
@@ -107,10 +145,15 @@ namespace TaxiWPF.Repositories
                         {
                             cards.Add(new PaymentCard
                             {
-                                // Важно: В CardNumber записываем маску из БД
-                                CardNumber = reader["MaskedNumber"].ToString(),
+                                // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+                                // 1. Полный номер из БД записываем в свойство CardNumber
+                                CardNumber = reader["FullCardNumber"]?.ToString(),
+
+                                // 2. Маску из БД записываем в свойство MaskedName
+                                MaskedName = reader["MaskedNumber"]?.ToString(),
+                                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
                                 CardExpiry = reader["CardExpiry"].ToString()
-                                // CVV не храним и не читаем
                             });
                         }
                     }
@@ -127,7 +170,7 @@ namespace TaxiWPF.Repositories
         // Вывод средств
         public bool WithdrawFunds(int driverId, decimal amount, PaymentCard card, bool saveCard)
         {
-            if (amount <= 0) return false; // Сумма должна быть положительной
+            if (amount <= 0) return false;
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -137,63 +180,32 @@ namespace TaxiWPF.Repositories
                     connection.Open();
                     transaction = connection.BeginTransaction();
 
-                    // 1. Проверяем баланс (пессимистическая блокировка на всякий случай)
-                    //    В реальной системе нужна более сложная логика проверки и блокировки
-                    var balanceCmd = new SqlCommand(
-                        "SELECT ISNULL(SUM(Amount), 0) FROM WalletTransactions WHERE driver_id = @driverId",
-                         connection, transaction);
+                    // ... (код проверки баланса остается без изменений) ...
+                    var balanceCmd = new SqlCommand("SELECT ISNULL(SUM(Amount), 0) FROM WalletTransactions WHERE driver_id = @driverId", connection, transaction);
                     balanceCmd.Parameters.AddWithValue("@driverId", driverId);
-                    decimal currentBalance = (decimal)balanceCmd.ExecuteScalar();
-
-                    if (amount > currentBalance)
+                    if (amount > (decimal)balanceCmd.ExecuteScalar())
                     {
                         MessageBox.Show("Недостаточно средств на балансе.", "Ошибка вывода");
                         transaction.Rollback();
                         return false;
                     }
 
-                    // 2. Добавляем транзакцию вывода (сумма отрицательная)
-                    var withdrawCmd = new SqlCommand(
-                        @"INSERT INTO WalletTransactions (driver_id, Description, Amount, TransactionType) 
-                          VALUES (@driverId, @Description, @Amount, @TransactionType)", connection, transaction);
+                    // ... (код транзакции вывода остается без изменений) ...
+                    var withdrawCmd = new SqlCommand(@"INSERT INTO WalletTransactions (driver_id, Description, Amount, TransactionType, PaymentMethod) VALUES (@driverId, @Description, @Amount, @TransactionType, @PaymentMethod)", connection, transaction);
                     withdrawCmd.Parameters.AddWithValue("@driverId", driverId);
                     withdrawCmd.Parameters.AddWithValue("@Description", "Вывод средств");
-                    withdrawCmd.Parameters.AddWithValue("@Amount", -amount); // Сумма с минусом
-                    withdrawCmd.Parameters.AddWithValue("@TransactionType", (int)TransactionType.Withdrawal); // Тип = Вывод
+                    withdrawCmd.Parameters.AddWithValue("@Amount", -amount);
+                    withdrawCmd.Parameters.AddWithValue("@TransactionType", (int)TransactionType.Withdrawal);
+                    withdrawCmd.Parameters.AddWithValue("@PaymentMethod", "Карта");
                     withdrawCmd.ExecuteNonQuery();
 
-                    // 3. Сохраняем карту, если нужно
+                    // Сохраняем карту, если нужно
                     if (saveCard)
                     {
-                        // Генерируем маску
-                        string cleanCardNumber = new string(card.CardNumber.Where(char.IsDigit).ToArray());
-                        string maskedNumber = "Карта";
-                        if (cleanCardNumber.Length >= 4)
-                        {
-                            if (cleanCardNumber.StartsWith("4")) maskedNumber = "Visa";
-                            else if (cleanCardNumber.StartsWith("5")) maskedNumber = "Mastercard";
-                            // ... можно добавить другие системы
-                            maskedNumber += " **** " + cleanCardNumber.Substring(cleanCardNumber.Length - 4);
-                        }
-
-                        // Проверяем, есть ли уже такая маска у водителя
-                        var checkCardCmd = new SqlCommand(
-                            "SELECT COUNT(*) FROM PaymentCards WHERE driver_id = @driverId AND MaskedNumber = @MaskedNumber",
-                             connection, transaction);
-                        checkCardCmd.Parameters.AddWithValue("@driverId", driverId);
-                        checkCardCmd.Parameters.AddWithValue("@MaskedNumber", maskedNumber);
-
-                        if ((int)checkCardCmd.ExecuteScalar() == 0)
-                        {
-                            // Если такой маски нет, добавляем
-                            var addCardCmd = new SqlCommand(
-                               @"INSERT INTO PaymentCards (driver_id, MaskedNumber, CardExpiry) 
-                                  VALUES (@driverId, @MaskedNumber, @CardExpiry)", connection, transaction);
-                            addCardCmd.Parameters.AddWithValue("@driverId", driverId);
-                            addCardCmd.Parameters.AddWithValue("@MaskedNumber", maskedNumber);
-                            addCardCmd.Parameters.AddWithValue("@CardExpiry", card.CardExpiry);
-                            addCardCmd.ExecuteNonQuery();
-                        }
+                        // --- НАЧАЛО ИСПРАВЛЕНИЯ: Используем существующий метод AddCard ---
+                        // Это гарантирует, что и полный номер, и маска будут сохранены правильно
+                        AddCard(driverId, card);
+                        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                     }
 
                     transaction.Commit();
@@ -212,9 +224,13 @@ namespace TaxiWPF.Repositories
         // Удаление сохраненной карты
         public bool DeleteCard(int driverId, PaymentCard cardToDelete)
         {
-            // Используем маску для удаления
-            string maskedNumber = cardToDelete.MaskedName; // Используем свойство MaskedName для получения маски
-            if (maskedNumber == "Новая карта") return false; // Нельзя удалить "Новую карту"
+            // ИСПРАВЛЕНИЕ: Проверяем и маску, и что это не "Новая карта"
+            if (cardToDelete == null || string.IsNullOrEmpty(cardToDelete.MaskedName) || cardToDelete.MaskedName == "Новая карта")
+            {
+                return false;
+            }
+
+            string maskedNumber = cardToDelete.MaskedName;
 
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -240,7 +256,7 @@ namespace TaxiWPF.Repositories
         }
 
         // Добавление заработка (вызывается из OrderService или DriverViewModel)
-        public void AddEarning(int driverId, decimal amount, int orderId)
+        public void AddEarning(int driverId, decimal amount, int orderId, string paymentMethod)
         {
             if (amount <= 0) return;
 
@@ -250,22 +266,52 @@ namespace TaxiWPF.Repositories
                 {
                     connection.Open();
                     var command = new SqlCommand(
-                       @"INSERT INTO WalletTransactions (driver_id, Description, Amount, TransactionType) 
-                          VALUES (@driverId, @Description, @Amount, @TransactionType)", connection);
+                       @"INSERT INTO WalletTransactions (driver_id, Description, Amount, TransactionType, PaymentMethod) 
+                  VALUES (@driverId, @Description, @Amount, @TransactionType, @PaymentMethod)", connection);
                     command.Parameters.AddWithValue("@driverId", driverId);
                     command.Parameters.AddWithValue("@Description", $"Поездка #{orderId}");
-                    command.Parameters.AddWithValue("@Amount", amount); // Сумма положительная
-                    command.Parameters.AddWithValue("@TransactionType", (int)TransactionType.Earning); // Тип = Заработок
+                    command.Parameters.AddWithValue("@Amount", amount);
+                    command.Parameters.AddWithValue("@TransactionType", (int)TransactionType.Earning);
+                    command.Parameters.AddWithValue("@PaymentMethod", paymentMethod); // Используем переданное значение
                     command.ExecuteNonQuery();
                 }
                 catch (Exception ex)
                 {
-                    // ВАЖНО: Эту ошибку нельзя просто показать водителю,
-                    // так как она может произойти в фоновом режиме. Нужен лог.
-                    System.Diagnostics.Debug.WriteLine($"КРИТИЧЕСКАЯ ОШИБКА: Не удалось добавить заработок водителю {driverId} за заказ {orderId}: {ex.Message}");
-                    // В реальном приложении здесь должна быть запись в лог-файл или систему мониторинга.
+                    System.Diagnostics.Debug.WriteLine($"КРИТИЧЕСКАЯ ОШИБКА: Не удалось добавить заработок: {ex.Message}");
                 }
             }
+        }
+        public Dictionary<DateTime, decimal> GetLastSevenDaysEarnings(int driverId)
+        {
+            var earnings = new Dictionary<DateTime, decimal>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    var command = new SqlCommand(
+        @"SELECT CAST(TransactionDate AS DATE) AS EarningDate, SUM(Amount) AS TotalAmount
+          FROM WalletTransactions
+          WHERE driver_id = @driverId AND TransactionType = 0 AND TransactionDate >= @sevenDaysAgo
+          GROUP BY CAST(TransactionDate AS DATE)", connection);
+
+                    command.Parameters.AddWithValue("@driverId", driverId);
+                    command.Parameters.AddWithValue("@sevenDaysAgo", DateTime.Now.AddDays(-6).Date); // -6 to include today
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            earnings[(DateTime)reader["EarningDate"]] = (decimal)reader["TotalAmount"];
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при получении заработка для графика: {ex.Message}");
+                }
+            }
+            return earnings;
         }
     }
 }

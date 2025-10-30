@@ -25,5 +25,8 @@ namespace TaxiWPF.Models
         public bool ClientRated { get; set; } = false;
         public bool DriverRated { get; set; } = false;
         // ------------------------
+
+        public string PaymentMethod { get; set; }
+
     }
 }

@@ -83,6 +83,12 @@ namespace TaxiWPF.Views
             MainMap.MouseLeftButtonDown += MainMap_PreviewMouseLeftButtonDown;
         }
 
+        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            ScrollViewer scv = (ScrollViewer)sender;
+            scv.ScrollToVerticalOffset(scv.VerticalOffset - e.Delta);
+            e.Handled = true;
+        }
         private void RatingButton_Checked(object sender, RoutedEventArgs e)
         {
             // Проверяем ViewModel

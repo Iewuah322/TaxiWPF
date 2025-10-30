@@ -8,25 +8,18 @@ namespace TaxiWPF.Models
 {
     public class PaymentCard
     {
+        // Для хранения полного номера (16 цифр)
         public string CardNumber { get; set; }
+
+        // Для хранения срока действия
         public string CardExpiry { get; set; }
-        public string CardCVV { get; set; } // В БД не храним, используется только для транзакции
 
-        // ==== ДОБАВЬ ЭТО СВОЙСТВО ====
-        // "Visa **** 1234"
-        public string MaskedName
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(CardNumber) || CardNumber.Length < 4)
-                    return "Новая карта";
+        // Для ввода CVV (в БД не хранится)
+        public string CardCVV { get; set; }
 
-                string prefix = "Карта";
-                if (CardNumber.StartsWith("4")) prefix = "Visa";
-                if (CardNumber.StartsWith("5")) prefix = "Mastercard";
-
-                return $"{prefix} **** {CardNumber.Substring(CardNumber.Length - 4)}";
-            }
-        }
+        // --- ИЗМЕНЕНИЕ ---
+        // Теперь это простое свойство для хранения маски (например, "Visa **** 1234"),
+        // которое мы будем загружать из базы данных.
+        public string MaskedName { get; set; }
     }
 }

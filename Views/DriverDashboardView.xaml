@@ -13,13 +13,26 @@
 
     <Border Background="#FDF4CD" CornerRadius="10" BorderBrush="#E0CA8A" BorderThickness="1">
         <Grid>
+
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Text="TAXIWPF - КАБИНЕТ ВОДИТЕЛЯ" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="15,10" VerticalAlignment="Center"/>
+            <TextBlock Text="TAXIWPF - КАБИНЕТ ВОДИТЕЛЯ" Foreground="#A8986B" FontWeight="Bold" FontSize="12" Margin="45,10,15,10" VerticalAlignment="Center"/>
             <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource CloseButton}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+
+            <Button Command="{Binding ToggleProfilePanelCommand}" Style="{StaticResource AvatarButton}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,5,0,0">
+                <Grid Width="40" Height="40">
+                    <TextBlock Text="👤" FontSize="20" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                    <Ellipse>
+                        <Ellipse.Fill>
+                            <ImageBrush ImageSource="{Binding CurrentUser.DriverPhotoUrl, Converter={StaticResource PathToImageConverter}}"/>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                </Grid>
+            </Button>
 
             <Border Grid.Row="1" Background="#FFFFFF" Margin="2,0,2,2" CornerRadius="0,0,10,10">
                 <Grid>
@@ -34,68 +47,91 @@
                             <TextBlock Text="{Binding TotalBalance, StringFormat={}{0:C}, ConverterCulture=ru-RU}" 
                                        FontSize="48" FontWeight="Bold" Foreground="#333333" Margin="0,0,0,20"/>
 
+
                             <Button Content="ВЫЙТИ НА ЛИНИЮ" Command="{Binding GoToMapCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,30"/>
 
                             <TextBlock Text="ЗАРАБОТОK ЗА 7 ДНЕЙ" Style="{StaticResource InputLabel}" Margin="0,0,0,10"/>
-                            <Border Background="#F9F9F9" CornerRadius="5" Height="180" Margin="0,0,0,20" BorderBrush="#EEE" BorderThickness="1">
-                                <ItemsControl ItemsSource="{Binding DailyEarnings}">
+                            <Grid Height="180" Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border BorderBrush="#EEE" BorderThickness="0,0,1,1" Grid.Column="0" Grid.ColumnSpan="2" Margin="35,0,0,25"/>
+
+                                <ItemsControl Grid.Column="0" ItemsSource="{Binding YAxisLabels}" Margin="0,0,5,25">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                            </Grid>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Grid.Row" Value="{Binding RelativeSource={RelativeSource PreviousData}, Path=TemplatedParent.Children.Count}"/>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel HorizontalAlignment="Center" Margin="10,0" VerticalAlignment="Bottom">
-
-                                                <Rectangle Fill="#FFC107" Width="30" Height="{Binding Value}">
-                                                    <Rectangle.ToolTip>
-                                                        <TextBlock Text="{Binding Value, StringFormat={}{0:C}, ConverterCulture=ru-RU}"/>
-                                                    </Rectangle.ToolTip>
-                                                </Rectangle>
-
-                                                <TextBlock Text="{Binding Key}" FontSize="11" FontWeight="SemiBold" 
-                       HorizontalAlignment="Center" Foreground="#555" Margin="0,5,0,5"/>
-                                            </StackPanel>
+                                            <TextBlock Text="{Binding}" FontSize="10" Foreground="#888" VerticalAlignment="Top" HorizontalAlignment="Right"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </Border>
 
+                                <Border Grid.Column="1" Padding="10,0,0,0" Margin="0,0,0,25">
+                                    <ItemsControl ItemsSource="{Binding DailyEarnings}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel HorizontalAlignment="Center" Margin="10,0" VerticalAlignment="Bottom">
+                                                    <Rectangle Fill="#FFC107" Width="30" Height="{Binding ScaledHeight}">
+                                                        <Rectangle.ToolTip>
+                                                            <TextBlock Text="{Binding Value, StringFormat={}{0:C}, ConverterCulture=ru-RU}"/>
+                                                        </Rectangle.ToolTip>
+                                                    </Rectangle>
+                                                    <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold" 
+                                                               HorizontalAlignment="Center" Foreground="#555" Margin="0,5,0,0" TextAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </Grid>
                             <Border Background="#FDFBF6" CornerRadius="5" Padding="20" Margin="0,10,0,0" BorderBrush="#E0CA8A" BorderThickness="1"
                                     Visibility="{Binding IsWithdrawPanelVisible, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
                                     <TextBlock Text="Вывод средств" FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#333"/>
-
                                     <TextBlock Text="Сумма для вывода" Style="{StaticResource InputLabel}"/>
                                     <TextBox Text="{Binding WithdrawAmount, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" Style="{StaticResource InputField}"/>
                                     <TextBlock Text="{Binding AmountError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding AmountError, Converter={StaticResource StringToVisibilityConverter}}"/>
-
                                     <TextBlock Text="Номер карты" Style="{StaticResource InputLabel}"/>
                                     <TextBox Text="{Binding CardNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
                                     <TextBlock Text="{Binding CardNumberError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CardNumberError, Converter={StaticResource StringToVisibilityConverter}}"/>
-
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-
                                         <StackPanel Grid.Column="0" Margin="0,0,10,0">
                                             <TextBlock Text="Срок (MM/YY)" Style="{StaticResource InputLabel}"/>
                                             <TextBox Text="{Binding CardExpiry, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
                                             <TextBlock Text="{Binding CardExpiryError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CardExpiryError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                         </StackPanel>
-
                                         <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                             <TextBlock Text="CVV" Style="{StaticResource InputLabel}"/>
                                             <TextBox Text="{Binding CardCVV, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputField}"/>
                                             <TextBlock Text="{Binding CvvError}" Foreground="Red" FontSize="11" Margin="0,2,0,5" Visibility="{Binding CvvError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                         </StackPanel>
                                     </Grid>
-
                                     <CheckBox Content="Запомнить карту" IsChecked="{Binding RememberCard}" Margin="0,15,0,0" Foreground="#4F4A45"/>
-
                                     <Button Content="ПОДТВЕРДИТЬ ВЫВОД" Command="{Binding WithdrawCommand}" Style="{StaticResource AcceptButton}" Margin="0,20,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -114,23 +150,11 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-
-                                    <ComboBox Grid.Column="0" 
-              ItemsSource="{Binding SavedCards}" 
-              SelectedItem="{Binding SelectedSavedCard}"
-              DisplayMemberPath="MaskedName"
-              Style="{StaticResource CustomComboBox}"/>
-
-                                    <Button Grid.Column="1" 
-            Content="✕" 
-            Command="{Binding DeleteCardCommand}" 
-            Style="{StaticResource CloseButton}" 
-            Width="45" Height="45" 
-            Margin="5,0,0,0" 
-            VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Column="0" ItemsSource="{Binding SavedCards}" SelectedItem="{Binding SelectedSavedCard}" DisplayMemberPath="MaskedName" Style="{StaticResource CustomComboBox}"/>
+                                    <Button Grid.Column="1" Content="✕" Command="{Binding DeleteCardCommand}" Style="{StaticResource CloseButton}" Width="45" Height="45" Margin="5,0,0,0" VerticalAlignment="Center"/>
                                 </Grid>
 
-                                <TextBlock Text="ПОСЛЕДНИЕ ПОСТУПЛЕНИЯ" FontSize="14" FontWeight="Bold" Foreground="#333" Margin="0,0,0,10"/>
+                                <TextBlock Text="ПОСЛЕДНИЕ ПОСТУПЛЕНИЯ" FontSize="14" FontWeight="Bold" Foreground="#333" Margin="0,20,0,10"/>
                                 <ListBox ItemsSource="{Binding RecentEarnings}" Style="{StaticResource OrdersListBox}" ItemContainerStyle="{StaticResource OrderCard}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
@@ -139,8 +163,7 @@
                                                     <TextBlock Text="{Binding Description}" FontWeight="SemiBold" Foreground="#198754"/>
                                                     <TextBlock Text="{Binding Date, StringFormat={}{dd.MM.yyyy HH:mm}}" FontSize="10" Foreground="#888"/>
                                                 </StackPanel>
-                                                <TextBlock Text="{Binding Amount, StringFormat=+{0:C}, ConverterCulture=ru-RU}" 
-                                                           FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#198754"/>
+                                                <TextBlock Text="{Binding Amount, StringFormat='+{0:C}', ConverterCulture=ru-RU}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#198754"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -155,8 +178,7 @@
                                                     <TextBlock Text="{Binding Description}" FontWeight="SemiBold" Foreground="#D9534F"/>
                                                     <TextBlock Text="{Binding Date, StringFormat={}{dd.MM.yyyy HH:mm}}" FontSize="10" Foreground="#888"/>
                                                 </StackPanel>
-                                                <TextBlock Text="{Binding Amount, StringFormat={}+{0:C}, ConverterCulture=ru-RU}" 
-                                                           FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#D9534F"/>
+                                                <TextBlock Text="{Binding Amount, StringFormat={}{0:C}, ConverterCulture=ru-RU}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#D9534F"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -166,6 +188,32 @@
                         </ScrollViewer>
                     </Border>
                 </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Background="#F0EEE9" Margin="2,0,2,2" CornerRadius="0,0,10,10"
+                    Visibility="{Binding IsProfilePanelVisible, Converter={StaticResource BoolToVis}}">
+                <ScrollViewer Margin="25">
+                    <StackPanel>
+                        <TextBlock Text="Мой профиль" FontSize="26" FontWeight="Bold" Foreground="#4F4A45"/>
+                        <TextBlock Text="{Binding CurrentUser.full_name}" FontSize="18" Foreground="#8D837C"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,20">
+                            <TextBlock Text="⭐" Foreground="#FFC107" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CurrentUser.rating, StringFormat=F2, FallbackValue='N/A'}" FontSize="14" FontWeight="SemiBold" Foreground="#4F4A45" Margin="5,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Фото профиля" Style="{StaticResource InputLabel}"/>
+                        <Border Style="{StaticResource ImagePreviewStyle}" Margin="0,5,0,10">
+                            <Image Source="{Binding CurrentUser.DriverPhotoUrl, Converter={StaticResource PathToImageConverter}}" Stretch="Uniform"/>
+                        </Border>
+                        <Button Content="Обновить фото профиля..." Command="{Binding UpdateProfilePhotoCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,20"/>
+
+                        <TextBlock Text="Фото прав" Style="{StaticResource InputLabel}"/>
+                        <Border Style="{StaticResource ImagePreviewStyle}" Margin="0,5,0,10">
+                            <Image Source="{Binding CurrentUser.LicensePhotoPath, Converter={StaticResource PathToImageConverter}}" Stretch="Uniform"/>
+                        </Border>
+                        <Button Content="Обновить фото прав..." Command="{Binding UpdateLicensePhotoCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,0"/>
+                        <Button Content="Связаться с поддержкой" Command="{Binding ContactSupportCommand}" Style="{StaticResource DeclineButton}" Margin="0,30,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
     </Border>

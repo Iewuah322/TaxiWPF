@@ -10,6 +10,8 @@ using System.Windows;
 using TaxiWPF.Models;
 using TaxiWPF.Repositories;
 using System.Runtime.CompilerServices;
+using Microsoft.Win32;
+using System.IO;
 
 namespace TaxiWPF.ViewModels
 {
@@ -35,14 +37,29 @@ namespace TaxiWPF.ViewModels
         public string SelectedPhotoUrl
         {
             get => _selectedPhotoUrl;
-            set { _selectedPhotoUrl = value; OnPropertyChanged(); }
+            set
+            {
+                _selectedPhotoUrl = value;
+                // --- ИЗМЕНЕНИЕ: Теперь при выборе фото в галерее, оно становится главным ---
+                if (!string.IsNullOrEmpty(value))
+                {
+                    Car.MainImageUrl = value;
+                }
+                // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Car)); // Оповещаем UI, что свойство Car изменилось
+            }
         }
 
         public ICommand CloseCommand { get; }
         public ICommand SaveCommand { get; }
-        public ICommand AddPhotoUrlCommand { get; } // Заглушка
+        
         public ICommand RemovePhotoUrlCommand { get; } // Заглушка
         public ICommand DeleteCarCommand { get; }
+
+        public ICommand SelectMainPhotoCommand { get; }
+        public ICommand AddPhotoToGalleryCommand { get; }
+
 
         // Событие для закрытия
         public event Action RequestClose;
@@ -70,9 +87,11 @@ namespace TaxiWPF.ViewModels
             CloseCommand = new RelayCommand(() => RequestClose?.Invoke());
             SaveCommand = new RelayCommand(SaveCar, CanSaveCar);
             DeleteCarCommand = new RelayCommand(DeleteCar, () => !IsAddMode); // Удалять можно только существующую
+            SelectMainPhotoCommand = new RelayCommand(SelectMainPhoto);
+            AddPhotoToGalleryCommand = new RelayCommand(AddPhotoToGallery);
 
             // --- Заглушки для фото ---
-            AddPhotoUrlCommand = new RelayCommand(AddPhotoUrl);
+
             RemovePhotoUrlCommand = new RelayCommand(RemovePhotoUrl, () => !string.IsNullOrEmpty(SelectedPhotoUrl));
 
             // --- Инициализация галереи ---
@@ -91,6 +110,55 @@ namespace TaxiWPF.ViewModels
             // Выбираем первое фото для отображения
             SelectedPhotoUrl = PhotoGallery.FirstOrDefault();
         }
+
+        private void SelectMainPhoto()
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "Image files|*.png;*.jpeg;*.jpg" };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string newPath = CopyImageToAppData(openFileDialog.FileName);
+                if (newPath != null)
+                {
+                    Car.MainImageUrl = newPath;
+                    OnPropertyChanged(nameof(Car)); // Уведомляем интерфейс об изменении
+                }
+            }
+        }
+
+        private void AddPhotoToGallery()
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "Image files|*.png;*.jpeg;*.jpg" };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string newPath = CopyImageToAppData(openFileDialog.FileName);
+                if (newPath != null)
+                {
+                    // Добавляем и в UI, и в саму модель
+                    PhotoGallery.Add(newPath);
+                    Car.PhotoGallery.Add(newPath);
+                }
+            }
+        }
+
+        private string CopyImageToAppData(string sourceImagePath)
+        {
+            try
+            {
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string destFolder = Path.Combine(baseDirectory, "UserData", "Images");
+                Directory.CreateDirectory(destFolder);
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(sourceImagePath);
+                string destinationPath = Path.Combine(destFolder, uniqueFileName);
+                File.Copy(sourceImagePath, destinationPath);
+                return Path.Combine("UserData", "Images", uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении фото: {ex.Message}");
+                return null;
+            }
+        }
+
 
         private bool CanSaveCar()
         {

@@ -12,6 +12,7 @@ using GMap.NET.MapProviders;
 using TaxiWPF.Services;
 using System.Linq;
 using System.Windows;
+using TaxiWPF.Repositories;
 
 
 namespace TaxiWPF.ViewModels
@@ -21,11 +22,14 @@ namespace TaxiWPF.ViewModels
         private readonly User _currentUser;
         private readonly Car _currentCar;
         private DispatcherTimer _orderTimer;
+        private readonly WalletRepository _walletRepository;
+        
 
         private bool _isOnline = true;
         private bool _isOnOrder = false;
         private string _panelTitle = "Доступные заказы";
         private string _statusMessage;
+        private readonly RatingRepository _ratingRepository;
 
         private Order _selectedOrder;
         private Order _acceptedOrder;
@@ -86,6 +90,7 @@ namespace TaxiWPF.ViewModels
                 _isOnOrder = value;
                 OnPropertyChanged();
                 UpdatePanelVisibility();
+                UpdateCommandStates(); // <-- Вот это добавленное исправление
             }
         }
 
@@ -123,6 +128,8 @@ namespace TaxiWPF.ViewModels
         {
             _currentUser = user;
             _currentCar = car;
+            _walletRepository = new WalletRepository();
+            _ratingRepository = new RatingRepository();
             StatusMessage = $"На линии на {_currentCar.ModelName}. Ожидание заказов...";
             AvailableOrders = new ObservableCollection<Order>();
 
@@ -266,9 +273,11 @@ namespace TaxiWPF.ViewModels
             var driverInfo = new Driver
             {
                 driver_id = _currentUser.user_id,
-                full_name = _currentUser.username,
+                full_name = _currentUser.full_name,
                 car_model = _currentCar.ModelName,
-                license_plate = _currentCar.LicensePlate
+                license_plate = _currentCar.LicensePlate,
+                DriverPhotoUrl = _currentUser.DriverPhotoUrl, // Передаем фото водителя
+                CarPhotoUrl = _currentCar.MainImageUrl
                 // (Здесь можно добавить и фото)
             };
             OrderService.Instance.AcceptOrder(AcceptedOrder, driverInfo);
@@ -319,20 +328,44 @@ namespace TaxiWPF.ViewModels
         {
             OrderService.Instance.CompleteOrder(AcceptedOrder);
 
-            var walletRepo = new Repositories.WalletRepository();
-            walletRepo.AddEarning(_currentUser.user_id, AcceptedOrder.TotalPrice, AcceptedOrder.order_id);
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // Регистрируем транзакцию в любом случае, но передаем способ оплаты.
+            // Репозиторий сам решит, влиять ли ей на баланс.
+            _walletRepository.AddEarning(
+                _currentUser.user_id,
+                AcceptedOrder.TotalPrice,
+                AcceptedOrder.order_id,
+                AcceptedOrder.PaymentMethod
+            );
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
-            OnRouteRequired?.Invoke(PointLatLng.Empty, PointLatLng.Empty); // Очищаем карту
-
-            // --- НОВОЕ: Показываем экран оценки ---
+            OnRouteRequired?.Invoke(PointLatLng.Empty, PointLatLng.Empty);
             IsRatingClient = true;
         }
 
         // --- НОВЫЕ МЕТОДЫ ОЦЕНКИ ---
         private void RateClient()
         {
-            MessageBox.Show($"Клиенту поставлена оценка: {ClientRating}");
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            bool success = _ratingRepository.AddRating(
+                AcceptedOrder,
+                _currentUser.user_id,
+                AcceptedOrder.OrderClient.client_id,
+                ClientRating,
+                false, false, false // Эти флаги только для оценки водителя
+            );
+
+            if (success)
+            {
+                MessageBox.Show($"Клиенту поставлена оценка: {ClientRating}");
+            }
+            else
+            {
+                MessageBox.Show("Не удалось сохранить оценку.", "Ошибка");
+            }
+
             ResetAfterRating();
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
         }
 
         private void SkipRateClient()

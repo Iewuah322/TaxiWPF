@@ -45,49 +45,62 @@ namespace TaxiWPF.Services
         // Водитель вызывает, когда принимает заказ
         public void AcceptOrder(Order order, Driver driver)
         {
-            // Получаем ПОСЛЕДНЮЮ версию заказа из БД (вдруг статус уже изменился)
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // Добавляем проверку, чтобы убедиться, что у нас есть корректные ID
+            if (order == null || order.order_id == 0 || driver == null || driver.driver_id == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("ОШИБКА: AcceptOrder получил неверный ID заказа или водителя.");
+                return;
+            }
+
             var existingOrder = _orderRepository.GetOrderById(order.order_id);
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
             if (existingOrder != null && existingOrder.Status == OrderState.Searching)
             {
-                existingOrder.AssignedDriver = driver; // Присваиваем водителя
-                existingOrder.Status = OrderState.DriverEnRoute; // Меняем статус
+                existingOrder.AssignedDriver = driver;
+                existingOrder.Status = OrderState.DriverEnRoute;
 
-                // Обновляем заказ в БД
                 if (_orderRepository.UpdateOrder(existingOrder))
                 {
-                    Notify(existingOrder); // Оповещаем об изменении статуса
+                    Notify(existingOrder);
                 }
             }
-            // else: Либо заказ не найден, либо уже принят/отменен - ничего не делаем
         }
 
         // Водитель нажал "Прибыл"
         public void DriverArrived(Order order)
         {
-            UpdateOrderStatus(order.order_id, OrderState.DriverEnRoute, OrderState.DriverArrived);
+            UpdateOrderStatus(order, OrderState.DriverEnRoute, OrderState.DriverArrived);
         }
 
         // Водитель нажал "Начать поездку"
         public void StartTrip(Order order)
         {
-            UpdateOrderStatus(order.order_id, OrderState.DriverArrived, OrderState.TripInProgress);
+            UpdateOrderStatus(order, OrderState.DriverArrived, OrderState.TripInProgress);
         }
 
         // Водитель нажал "Завершить"
         public void CompleteOrder(Order order)
         {
-            UpdateOrderStatus(order.order_id, OrderState.TripInProgress, OrderState.TripCompleted);
+            UpdateOrderStatus(order, OrderState.TripInProgress, OrderState.TripCompleted);
         }
 
         // Вызывается, когда заказ можно убрать из вида (например, отменен клиентом или обе стороны поставили оценку)
         public void ArchiveOrder(Order order)
         {
-            // В реальной системе статус Archived может быть не нужен,
-            // или можно просто удалить заказ, если оценки поставлены.
-            // Пока просто обновим статус.
-            UpdateOrderStatus(order.order_id, OrderState.TripCompleted, OrderState.Archived);
-            // Или можно добавить UpdateOrderStatus(order.order_id, OrderState.Searching, OrderState.Archived); для отмены
+            // --- ИЗМЕНЕНИЕ: Получаем самую свежую версию заказа из БД ---
+            var freshOrder = _orderRepository.GetOrderById(order.order_id);
+            if (freshOrder == null) return;
+
+            if (freshOrder.Status == OrderState.TripCompleted)
+            {
+                UpdateOrderStatus(freshOrder, OrderState.TripCompleted, OrderState.Archived);
+            }
+            else if (freshOrder.Status == OrderState.Searching)
+            {
+                UpdateOrderStatus(freshOrder, OrderState.Searching, OrderState.Archived);
+            }
         }
 
 
@@ -99,14 +112,20 @@ namespace TaxiWPF.Services
         }
 
         // Вспомогательный метод для обновления статуса заказа в БД
-        private void UpdateOrderStatus(int orderId, OrderState expectedCurrentState, OrderState newState)
+        private void UpdateOrderStatus(Order orderWithDriverInfo, OrderState expectedCurrentState, OrderState newState)
         {
-            var existingOrder = _orderRepository.GetOrderById(orderId);
+            var existingOrder = _orderRepository.GetOrderById(orderWithDriverInfo.order_id);
 
             // Обновляем, только если текущий статус совпадает с ожидаемым
             if (existingOrder != null && existingOrder.Status == expectedCurrentState)
             {
                 existingOrder.Status = newState;
+                // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+                // Сохраняем информацию о водителе и машине из принятого заказа,
+                // так как GetOrderById не загружает данные о машине.
+                existingOrder.AssignedDriver = orderWithDriverInfo.AssignedDriver;
+                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
                 if (_orderRepository.UpdateOrder(existingOrder))
                 {
                     Notify(existingOrder); // Оповещаем об изменении
