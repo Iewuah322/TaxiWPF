@@ -22,15 +22,14 @@ namespace TaxiWPF.ViewModels
         public string Password { get => _password; set { _password = value; OnPropertyChanged(nameof(Password)); } }
 
         public ICommand LoginCommand { get; }
-        public ICommand GoToRegisterCommand { get; }
-        public ICommand GoToRecoveryCommand { get; }
+        public ICommand GoToRegisterCommand { get; set; }
+        public ICommand GoToRecoveryCommand { get; set; }
 
         public LoginViewModel()
         {
             _userRepository = new UserRepository();
             LoginCommand = new RelayCommand(Login, () => !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password));
-            GoToRegisterCommand = new RelayCommand(GoToRegister);
-            GoToRecoveryCommand = new RelayCommand(GoToRecovery);
+            // Команды навигации будут установлены из AuthViewModel
         }
 
         private void Login()
@@ -38,8 +37,6 @@ namespace TaxiWPF.ViewModels
             var user = _userRepository.GetUserByUsername(Username);
             if (user != null && user.password == Password)
             {
-                MessageBox.Show($"Добро пожаловать, {user.full_name}!");
-
                 if (user.role == "Driver")
                 {
                     var dashboardVM = new DriverDashboardViewModel(user);
@@ -57,10 +54,14 @@ namespace TaxiWPF.ViewModels
                 // --- КОНЕЦ ИЗМЕНЕНИЙ ---
                 else // "Client"
                 {
+                    // Создаем и сразу показываем ClientView (карта начнет загружаться, анимация показывается сразу)
                     var clientVM = new ClientViewModel(user);
                     var clientView = new ClientView();
                     clientView.DataContext = clientVM;
                     clientView.Show();
+                    
+                    // Закрываем окно входа
+                    Application.Current.Windows.OfType<LoginView>().FirstOrDefault()?.Close();
                 }
 
                 // Закрываем окно входа
@@ -81,17 +82,7 @@ namespace TaxiWPF.ViewModels
             }
         }
 
-        private void GoToRegister()
-        {
-            var registrationView = new RegistrationView();
-            registrationView.ShowDialog();
-        }
-
-        private void GoToRecovery()
-        {
-            var recoveryView = new PasswordRecoveryView();
-            recoveryView.ShowDialog();
-        }
+        // Методы GoToRegister и GoToRecovery больше не нужны - навигация через AuthViewModel
 
         public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)

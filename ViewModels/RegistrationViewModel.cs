@@ -21,6 +21,7 @@ namespace TaxiWPF.ViewModels
         private readonly UserRepository _userRepository;
         private string _username;
         private string _password;
+        private string _confirmPassword;
         private string _email;
         private string _fullName;
 
@@ -30,10 +31,11 @@ namespace TaxiWPF.ViewModels
         private string _profilePhotoPath;
         // --------------------------------------------------
 
-        public string Username { get => _username; set { _username = value; OnPropertyChanged(nameof(Username)); } }
-        public string Password { get => _password; set { _password = value; OnPropertyChanged(nameof(Password)); } }
-        public string Email { get => _email; set { _email = value; OnPropertyChanged(nameof(Email)); } }
-        public string FullName { get => _fullName; set { _fullName = value; OnPropertyChanged(nameof(FullName)); } }
+        public string Username { get => _username; set { _username = value; OnPropertyChanged(nameof(Username)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
+        public string Password { get => _password; set { _password = value; OnPropertyChanged(nameof(Password)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
+        public string ConfirmPassword { get => _confirmPassword; set { _confirmPassword = value; OnPropertyChanged(nameof(ConfirmPassword)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
+        public string Email { get => _email; set { _email = value; OnPropertyChanged(nameof(Email)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
+        public string FullName { get => _fullName; set { _fullName = value; OnPropertyChanged(nameof(FullName)); (RegisterCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
 
         // --- НОВОЕ: Свойство для переключения видимости ---
         public bool IsDriverRegistration
@@ -65,6 +67,7 @@ namespace TaxiWPF.ViewModels
         public ICommand ToggleRegistrationModeCommand { get; }
         public ICommand SelectLicensePhotoCommand { get; }
         public ICommand SelectProfilePhotoCommand { get; }
+        public ICommand GoToLoginCommand { get; set; }
         // -------------------
 
         public ICommand RegisterCommand { get; }
@@ -87,6 +90,8 @@ namespace TaxiWPF.ViewModels
         {
             bool baseValid = !string.IsNullOrWhiteSpace(Username) &&
                              !string.IsNullOrWhiteSpace(Password) &&
+                             !string.IsNullOrWhiteSpace(ConfirmPassword) &&
+                             Password == ConfirmPassword &&
                              !string.IsNullOrWhiteSpace(Email) && Email.Contains("@") &&
                              !string.IsNullOrWhiteSpace(FullName);
 
@@ -159,19 +164,18 @@ namespace TaxiWPF.ViewModels
 
             // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
+            if (Password != ConfirmPassword)
+            {
+                MessageBox.Show("Пароли не совпадают. Пожалуйста, проверьте введённые данные.", "Ошибка регистрации");
+                return;
+            }
+
             if (_userRepository.AddUser(newUser))
             {
                 MessageBox.Show("Регистрация прошла успешно! Теперь вы можете войти.", "Успех");
 
-                // Закрываем окно регистрации
-                foreach (Window window in Application.Current.Windows)
-                {
-                    if (window.DataContext == this)
-                    {
-                        window.Close();
-                        break;
-                    }
-                }
+                // Возвращаемся к форме входа
+                GoToLoginCommand?.Execute(null);
             }
             else
             {

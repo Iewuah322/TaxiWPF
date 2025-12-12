@@ -28,13 +28,37 @@ namespace TaxiWPF.ViewModels
             get => _selectedTicket;
             set
             {
+                // Сбрасываем IsSelected у всех
+                foreach (var ticket in OpenTickets)
+                {
+                    ticket.IsSelected = false;
+                }
+                
                 _selectedTicket = value;
+                
+                // Устанавливаем IsSelected для выбранного
+                if (_selectedTicket != null)
+                {
+                    _selectedTicket.IsSelected = true;
+                }
+                
                 OnPropertyChanged();
                 (OpenChatCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
 
         public ICommand RefreshTicketsCommand { get; }
+        public ICommand ToggleProfilePanelCommand { get; }
+
+        // Свойства для панели профиля
+        private bool _isProfilePanelVisible = false;
+        public bool IsProfilePanelVisible
+        {
+            get => _isProfilePanelVisible;
+            set { _isProfilePanelVisible = value; OnPropertyChanged(); }
+        }
+
+        public User CurrentManager => _managerUser;
 
         public ManagerViewModel(User managerUser)
         {
@@ -45,6 +69,7 @@ namespace TaxiWPF.ViewModels
             OpenChatCommand = new RelayCommand(OpenChat, () => SelectedTicket != null); // <-- Инициализируем команду
 
             RefreshTicketsCommand = new RelayCommand(LoadOpenTickets);
+            ToggleProfilePanelCommand = new RelayCommand(() => IsProfilePanelVisible = !IsProfilePanelVisible);
 
             LoadOpenTickets();
         }

@@ -19,6 +19,47 @@ namespace TaxiWPF.Repositories
         public CarRepository() // <-- Добавлен конструктор
         {
             _connectionString = ConfigurationManager.ConnectionStrings["TaxiDB"].ConnectionString;
+            EnsureColorAndTariffColumnsExist();
+        }
+
+        private void EnsureColorAndTariffColumnsExist()
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    
+                    // Проверяем существование колонки Color
+                    var checkColorCmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Cars' AND COLUMN_NAME = 'Color'",
+                        connection);
+                    var colorExists = (int)checkColorCmd.ExecuteScalar() > 0;
+                    
+                    if (!colorExists)
+                    {
+                        var addColorCmd = new SqlCommand("ALTER TABLE Cars ADD Color NVARCHAR(50) NULL", connection);
+                        addColorCmd.ExecuteNonQuery();
+                    }
+                    
+                    // Проверяем существование колонки Tariff
+                    var checkTariffCmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Cars' AND COLUMN_NAME = 'Tariff'",
+                        connection);
+                    var tariffExists = (int)checkTariffCmd.ExecuteScalar() > 0;
+                    
+                    if (!tariffExists)
+                    {
+                        var addTariffCmd = new SqlCommand("ALTER TABLE Cars ADD Tariff NVARCHAR(50) NULL", connection);
+                        addTariffCmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка при проверке/создании колонок Color и Tariff: {ex.Message}");
+                // Не прерываем выполнение, просто логируем
+            }
         }
 
         // Получаем все машины водителя
@@ -47,6 +88,8 @@ namespace TaxiWPF.Repositories
                                 MainImageUrl = reader["MainImageUrl"] as string,
                                 EngineInfo = reader["EngineInfo"] as string,
                                 InsuranceInfo = reader["InsuranceInfo"] as string,
+                                Color = reader["Color"] as string ?? "Не указан",
+                                Tariff = reader["Tariff"] as string ?? "Эконом",
                                 PhotoGallery = new List<string>() // Инициализируем пустой список
                             };
                             cars.Add(car);
@@ -90,9 +133,9 @@ namespace TaxiWPF.Repositories
                     // 1. Добавляем основную информацию о машине
                     //    OUTPUT INSERTED.CarId вернет нам ID новой машины
                     var command = new SqlCommand(
-                        @"INSERT INTO Cars (DriverId, ModelName, LicensePlate, MainImageUrl, EngineInfo, InsuranceInfo) 
+                        @"INSERT INTO Cars (DriverId, ModelName, LicensePlate, MainImageUrl, EngineInfo, InsuranceInfo, Color, Tariff) 
                           OUTPUT INSERTED.CarId 
-                          VALUES (@DriverId, @ModelName, @LicensePlate, @MainImageUrl, @EngineInfo, @InsuranceInfo)",
+                          VALUES (@DriverId, @ModelName, @LicensePlate, @MainImageUrl, @EngineInfo, @InsuranceInfo, @Color, @Tariff)",
                         connection, transaction);
 
                     command.Parameters.AddWithValue("@DriverId", car.DriverId);
@@ -101,6 +144,8 @@ namespace TaxiWPF.Repositories
                     command.Parameters.AddWithValue("@MainImageUrl", (object)car.MainImageUrl ?? DBNull.Value);
                     command.Parameters.AddWithValue("@EngineInfo", (object)car.EngineInfo ?? DBNull.Value);
                     command.Parameters.AddWithValue("@InsuranceInfo", (object)car.InsuranceInfo ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Color", (object)car.Color ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Tariff", (object)car.Tariff ?? DBNull.Value);
 
                     // Выполняем команду и получаем ID новой машины
                     car.CarId = (int)command.ExecuteScalar();
@@ -149,7 +194,9 @@ namespace TaxiWPF.Repositories
                             LicensePlate = @LicensePlate, 
                             MainImageUrl = @MainImageUrl, 
                             EngineInfo = @EngineInfo, 
-                            InsuranceInfo = @InsuranceInfo 
+                            InsuranceInfo = @InsuranceInfo,
+                            Color = @Color,
+                            Tariff = @Tariff
                           WHERE CarId = @CarId AND DriverId = @DriverId",
                         connection, transaction);
 
@@ -160,6 +207,8 @@ namespace TaxiWPF.Repositories
                     command.Parameters.AddWithValue("@MainImageUrl", (object)car.MainImageUrl ?? DBNull.Value);
                     command.Parameters.AddWithValue("@EngineInfo", (object)car.EngineInfo ?? DBNull.Value);
                     command.Parameters.AddWithValue("@InsuranceInfo", (object)car.InsuranceInfo ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Color", (object)car.Color ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Tariff", (object)car.Tariff ?? DBNull.Value);
 
                     int rowsAffected = command.ExecuteNonQuery();
 

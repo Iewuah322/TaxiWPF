@@ -63,7 +63,17 @@ namespace TaxiWPF.Services
 
                 if (_orderRepository.UpdateOrder(existingOrder))
                 {
-                    Notify(existingOrder);
+                    // Перезагружаем заказ из БД, чтобы получить полные данные о водителе и машине
+                    var updatedOrder = _orderRepository.GetOrderById(order.order_id);
+                    if (updatedOrder != null)
+                    {
+                        Notify(updatedOrder);
+                    }
+                    else
+                    {
+                        // Если не удалось загрузить, отправляем то, что есть
+                        Notify(existingOrder);
+                    }
                 }
             }
         }
@@ -120,15 +130,19 @@ namespace TaxiWPF.Services
             if (existingOrder != null && existingOrder.Status == expectedCurrentState)
             {
                 existingOrder.Status = newState;
-                // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-                // Сохраняем информацию о водителе и машине из принятого заказа,
-                // так как GetOrderById не загружает данные о машине.
-                existingOrder.AssignedDriver = orderWithDriverInfo.AssignedDriver;
-                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
                 if (_orderRepository.UpdateOrder(existingOrder))
                 {
-                    Notify(existingOrder); // Оповещаем об изменении
+                    // Перезагружаем заказ из БД, чтобы получить полные данные
+                    var updatedOrder = _orderRepository.GetOrderById(orderWithDriverInfo.order_id);
+                    if (updatedOrder != null)
+                    {
+                        Notify(updatedOrder); // Оповещаем об изменении
+                    }
+                    else
+                    {
+                        Notify(existingOrder); // Если не удалось загрузить, отправляем то, что есть
+                    }
                 }
             }
         }
@@ -137,6 +151,7 @@ namespace TaxiWPF.Services
         // Главный оповещатель (остался без изменений)
         private void Notify(Order order)
         {
+            System.Diagnostics.Debug.WriteLine($"[OrderService] Notify вызван для заказа #{order.order_id}, статус: {order.Status}, подписчиков: {OrderUpdated?.GetInvocationList()?.Length ?? 0}");
             OrderUpdated?.Invoke(order);
         }
     }

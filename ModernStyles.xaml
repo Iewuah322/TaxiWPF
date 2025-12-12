@@ -9,7 +9,9 @@
     <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
     <converters:RatingStarConverter x:Key="RatingStarConverter"/>
     <converters:RelativePathToAbsoluteConverter x:Key="PathToImageConverter"/>
+    <converters:TariffToImageConverter x:Key="TariffToImageConverter"/>
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+    <!-- <converters:EqualityConverter x:Key="EqualityConverter"/> -->
     
 
     <Style x:Key="CloseButton" TargetType="Button">
@@ -299,7 +301,7 @@
                                    PopupAnimation="Slide">
                                 <Border x:Name="dropDownBorder"
                                         Background="#FFFFFF"
-                                        BorderBrush="#E0CA8A"
+                                        BorderBrush="#DDCAB4"
                                         BorderThickness="1"
                                         CornerRadius="3"
                                         Margin="0,5,0,0"
@@ -524,7 +526,7 @@
                             <Setter TargetName="border" Property="BorderBrush" Value="#0D6EFD"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#FFF9E0"/>
+                            <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
                             <Setter TargetName="border" Property="BorderBrush" Value="#FFC107"/>
                             <Setter TargetName="border" Property="BorderThickness" Value="2"/>
                         </Trigger>
@@ -554,20 +556,20 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0" CornerRadius="3" Background="#EEE">
+                            <Border Grid.Column="0" CornerRadius="3" Background="#F5F5F5">
                                 <Image Source="{Binding MainImageUrl, Converter={StaticResource PathToImageConverter}, FallbackValue='https://i.stack.imgur.com/y9DpT.jpg'}" 
                                    Height="70" Stretch="UniformToFill"/>
                             </Border>
 
                             <StackPanel Grid.Column="1" Margin="15,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ModelName}" FontWeight="Bold" FontSize="16" Foreground="#333"/>
-                                <TextBlock Text="{Binding LicensePlate}" FontSize="14" Foreground="#777"/>
+                                <TextBlock Text="{Binding ModelName}" FontWeight="Bold" FontSize="16" Foreground="#333333"/>
+                                <TextBlock Text="{Binding LicensePlate}" FontSize="14" Foreground="#666666"/>
                             </StackPanel>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#FFF9E0"/>
+                            <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
                             <Setter TargetName="border" Property="BorderBrush" Value="#FFC107"/>
                             <Setter TargetName="border" Property="BorderThickness" Value="2"/>
                         </Trigger>

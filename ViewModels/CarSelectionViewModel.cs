@@ -61,6 +61,18 @@ namespace TaxiWPF.ViewModels
             }
         }
 
+        public void SelectCar(Car car)
+        {
+            // Сбрасываем выбор у всех
+            foreach (var c in Cars)
+            {
+                c.IsSelected = false;
+            }
+            // Выбираем указанную
+            car.IsSelected = true;
+            SelectedCar = car;
+        }
+
         private void SelectCar()
         {
             // true - значит "ОК"

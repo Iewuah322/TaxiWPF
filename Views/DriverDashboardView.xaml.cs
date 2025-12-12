@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using TaxiWPF.Models;
 using TaxiWPF.ViewModels;
 
 namespace TaxiWPF.Views
@@ -46,6 +47,15 @@ namespace TaxiWPF.Views
             // (В идеале здесь должно быть Application.Current.Shutdown(), 
             // но Close() тоже подойдет, если LoginView закрылся)
             Close();
+        }
+
+
+        private void CarCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is Car car && DataContext is DriverDashboardViewModel vm)
+            {
+                vm.SelectCarInList(car);
+            }
         }
     }
 }

@@ -38,11 +38,33 @@ namespace TaxiWPF.ViewModels
         private string _cvvError;
         private readonly UserRepository _userRepository;
         private bool _isProfilePanelVisible = false;
+        private bool _isCarSelectionVisible = false;
+        private bool _isCarDetailsVisible = false;
+        private Car _selectedCar;
+        private Car _carForEditing;
+        private readonly CarRepository _carRepository;
+        
         public ObservableCollection<ChartDataPoint> DailyEarnings { get; set; }
         public ObservableCollection<string> YAxisLabels { get; set; }
         public decimal ChartMaxY { get; set; }
         public User CurrentUser { get => _currentUser; }
         public bool IsProfilePanelVisible { get => _isProfilePanelVisible; set { _isProfilePanelVisible = value; OnPropertyChanged(); } }
+        public bool IsCarSelectionVisible { get => _isCarSelectionVisible; set { _isCarSelectionVisible = value; OnPropertyChanged(); } }
+        public bool IsCarDetailsVisible { get => _isCarDetailsVisible; set { _isCarDetailsVisible = value; OnPropertyChanged(); } }
+        public ObservableCollection<Car> Cars { get; set; }
+        public Car SelectedCar { get => _selectedCar; set { _selectedCar = value; OnPropertyChanged(); (SelectCarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
+        public Car CarForEditing 
+        { 
+            get => _carForEditing; 
+            set 
+            { 
+                _carForEditing = value; 
+                OnPropertyChanged(); 
+                (SaveCarCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteCarCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (RemovePhotoUrlCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            } 
+        }
         public ICommand DeleteCardCommand { get; }
         public ICommand ToggleProfilePanelCommand { get; }
         public ICommand UpdateProfilePhotoCommand { get; }
@@ -211,6 +233,16 @@ namespace TaxiWPF.ViewModels
         public ICommand WithdrawCommand { get; }
         public ICommand GoToMapCommand { get; }
         public ICommand LoadSavedCardCommand { get; }
+        public ICommand SelectCarCommand { get; }
+        public ICommand AddCarCommand { get; }
+        public ICommand ViewCarDetailsCommand { get; }
+        public ICommand CloseCarSelectionCommand { get; }
+        public ICommand SaveCarCommand { get; }
+        public ICommand DeleteCarCommand { get; }
+        public ICommand CloseCarDetailsCommand { get; }
+        public ICommand SelectMainPhotoCommand { get; }
+        public ICommand AddPhotoToGalleryCommand { get; }
+        public ICommand RemovePhotoUrlCommand { get; }
 
         public DriverDashboardViewModel(User user)
         {
@@ -218,11 +250,13 @@ namespace TaxiWPF.ViewModels
             _walletRepository = new WalletRepository();
             _userRepository = new UserRepository();
             _supportRepository = new SupportRepository();
+            _carRepository = new CarRepository();
 
             RecentEarnings = new ObservableCollection<Transaction>();
             RecentWithdrawals = new ObservableCollection<Transaction>();
             DailyEarnings = new ObservableCollection<ChartDataPoint>();
             YAxisLabels = new ObservableCollection<string>();
+            Cars = new ObservableCollection<Car>();
 
             // ==== ВОТ ЭТА СТРОКА, СКОРЕЕ ВСЕГО, ПРОПУЩЕНА ====
             // ==== Убедись, что она здесь есть ====
@@ -236,9 +270,20 @@ namespace TaxiWPF.ViewModels
             ToggleWithdrawPanelCommand = new RelayCommand(() => IsWithdrawPanelVisible = !IsWithdrawPanelVisible);
             WithdrawCommand = new RelayCommand(Withdraw, CanWithdraw);
             GoToMapCommand = new RelayCommand(GoToMap);
-            DeleteCardCommand = new RelayCommand(DeleteCard, CanDeleteCard); // <-- ДОБАВЬ ЭТУ СТРОКУ
+            DeleteCardCommand = new RelayCommand(DeleteCard, CanDeleteCard);
+            SelectCarCommand = new RelayCommand(SelectCar, () => SelectedCar != null);
+            AddCarCommand = new RelayCommand(AddCar);
+            ViewCarDetailsCommand = new RelayCommand(ViewCarDetails, () => SelectedCar != null);
+            CloseCarSelectionCommand = new RelayCommand(() => IsCarSelectionVisible = false);
+            SaveCarCommand = new RelayCommand(SaveCar, () => CanSaveCar());
+            DeleteCarCommand = new RelayCommand(DeleteCarFromList, () => CanDeleteCarFromList());
+            CloseCarDetailsCommand = new RelayCommand(() => { IsCarDetailsVisible = false; CarForEditing = null; });
+            SelectMainPhotoCommand = new RelayCommand(SelectMainPhoto);
+            AddPhotoToGalleryCommand = new RelayCommand(AddPhotoToGallery);
+            RemovePhotoUrlCommand = new RelayCommand(RemovePhotoUrl, () => CarForEditing != null && CarForEditing.PhotoGallery.Count > 0);
 
             LoadDashboardData();
+            LoadCars();
         }
 
         private void OpenSupportChat()
@@ -276,33 +321,6 @@ namespace TaxiWPF.ViewModels
             }
         }
 
-        private string CopyImageToAppData(string sourceImagePath)
-        {
-            try
-            {
-                // 1. Определяем папку назначения внутри папки с .exe файлом
-                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string destFolder = Path.Combine(baseDirectory, "UserData", "Images");
-
-                // 2. Создаем папку, если ее не существует
-                Directory.CreateDirectory(destFolder);
-
-                // 3. Генерируем уникальное имя файла, чтобы избежать конфликтов
-                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(sourceImagePath);
-                string destinationPath = Path.Combine(destFolder, uniqueFileName);
-
-                // 4. Копируем файл
-                File.Copy(sourceImagePath, destinationPath);
-
-                // 5. Возвращаем ОТНОСИТЕЛЬНЫЙ путь для сохранения в БД
-                return Path.Combine("UserData", "Images", uniqueFileName);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при сохранении фото: {ex.Message}");
-                return null;
-            }
-        }
             
         private bool CanDeleteCard()
         {
@@ -442,37 +460,220 @@ namespace TaxiWPF.ViewModels
 
         private void GoToMap()
         {
-            // 1. Создаем и открываем окно выбора авто
-            var carSelectionView = new CarSelectionView(_currentUser);
+            // Показываем панель выбора авто вместо открытия отдельного окна
+            LoadCars();
+            IsCarSelectionVisible = true;
+        }
 
-            // 2. Показываем его как модальное окно (ShowDialog)
-            //    Программа "встанет на паузу" здесь, пока окно не закроется
-            bool? dialogResult = carSelectionView.ShowDialog();
-
-            // 3. Проверяем, нажал ли водитель "Выбрать" (а не "Отмена")
-            if (dialogResult == true)
+        private void LoadCars()
+        {
+            Cars.Clear();
+            var carsFromRepo = _carRepository.GetCarsByDriverId(_currentUser.user_id);
+            foreach (var car in carsFromRepo)
             {
-                // 4. Получаем выбранную машину из окна
-                Car selectedCar = carSelectionView.SelectedCar;
+                Cars.Add(car);
+            }
+        }
 
-                // 5. Открываем карту, ПЕРЕДАВАЯ В НЕЕ ВЫБРАННУЮ МАШИНУ
-                var driverVM = new DriverViewModel(_currentUser, selectedCar);
-                var driverView = new DriverView();
-                driverView.DataContext = driverVM;
-                driverView.Show();
+        public void SelectCarInList(Car car)
+        {
+            foreach (var c in Cars)
+            {
+                c.IsSelected = false;
+            }
+            car.IsSelected = true;
+            SelectedCar = car;
+        }
 
-                // 6. Закрываем этот дашборд
-                foreach (Window window in Application.Current.Windows)
+        private void SelectCar()
+        {
+            if (SelectedCar == null) return;
+            
+            // Открываем карту с выбранной машиной
+            var driverVM = new DriverViewModel(_currentUser, SelectedCar);
+            var driverView = new DriverView();
+            driverView.DataContext = driverVM;
+            driverView.Show();
+
+            // Закрываем дашборд
+            foreach (Window window in Application.Current.Windows)
+            {
+                if (window.DataContext == this)
                 {
-                    if (window.DataContext == this)
-                    {
-                        window.Hide(); // <-- Скрываем, а не закрываем
-                        break;
-                    }
+                    window.Hide();
+                    break;
                 }
             }
-            // Если dialogResult == false (нажата "Отмена"), ничего не делаем
-            // и просто остаемся в Дашборде.
+        }
+
+        private void AddCar()
+        {
+            CarForEditing = new Car 
+            { 
+                DriverId = _currentUser.user_id,
+                Color = "Не указан",
+                Tariff = "Эконом"
+            };
+            IsCarDetailsVisible = true;
+            IsCarSelectionVisible = false;
+        }
+
+        private void ViewCarDetails()
+        {
+            if (SelectedCar == null) return;
+            // Создаём копию для редактирования, чтобы не менять оригинал до сохранения
+            CarForEditing = new Car
+            {
+                CarId = SelectedCar.CarId,
+                DriverId = SelectedCar.DriverId,
+                ModelName = SelectedCar.ModelName,
+                LicensePlate = SelectedCar.LicensePlate,
+                MainImageUrl = SelectedCar.MainImageUrl,
+                Color = SelectedCar.Color ?? "Не указан",
+                Tariff = SelectedCar.Tariff ?? "Эконом",
+                EngineInfo = SelectedCar.EngineInfo,
+                InsuranceInfo = SelectedCar.InsuranceInfo,
+                PhotoGallery = SelectedCar.PhotoGallery != null ? new List<string>(SelectedCar.PhotoGallery) : new List<string>()
+            };
+            IsCarDetailsVisible = true;
+            IsCarSelectionVisible = false;
+        }
+
+        private bool CanSaveCar()
+        {
+            if (CarForEditing == null) return false;
+            bool isValid = !string.IsNullOrWhiteSpace(CarForEditing.ModelName) &&
+                          !string.IsNullOrWhiteSpace(CarForEditing.LicensePlate);
+            return isValid;
+        }
+
+        private void SaveCar()
+        {
+            if (CarForEditing == null) return;
+
+            CarForEditing.DriverId = _currentUser.user_id;
+            
+            if (CarForEditing.CarId == 0)
+            {
+                // Новое авто
+                var addedCar = _carRepository.AddCar(CarForEditing);
+                if (addedCar != null)
+                {
+                    MessageBox.Show("Автомобиль успешно добавлен!", "Успех");
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка при добавлении автомобиля.", "Ошибка");
+                    return;
+                }
+            }
+            else
+            {
+                // Обновление существующего
+                if (_carRepository.UpdateCar(CarForEditing))
+                {
+                    MessageBox.Show("Автомобиль успешно обновлён!", "Успех");
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка при обновлении автомобиля.", "Ошибка");
+                    return;
+                }
+            }
+
+            LoadCars();
+            IsCarDetailsVisible = false;
+            CarForEditing = null;
+            // Возвращаемся к панели выбора, если она была открыта
+            if (Cars.Count > 0)
+            {
+                IsCarSelectionVisible = true;
+            }
+        }
+
+        private bool CanDeleteCarFromList()
+        {
+            return CarForEditing != null && CarForEditing.CarId > 0;
+        }
+
+        private void DeleteCarFromList()
+        {
+            if (CarForEditing == null || CarForEditing.CarId == 0) return;
+
+            if (MessageBox.Show("Вы уверены, что хотите удалить этот автомобиль?", "Подтверждение", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                if (_carRepository.DeleteCar(CarForEditing))
+                {
+                    LoadCars();
+                    IsCarDetailsVisible = false;
+                    CarForEditing = null;
+                    MessageBox.Show("Автомобиль успешно удалён!", "Успех");
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка при удалении автомобиля.", "Ошибка");
+                }
+            }
+        }
+
+        private void SelectMainPhoto()
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "Image files|*.png;*.jpeg;*.jpg" };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string newPath = CopyImageToAppData(openFileDialog.FileName);
+                if (newPath != null && CarForEditing != null)
+                {
+                    CarForEditing.MainImageUrl = newPath;
+                    OnPropertyChanged(nameof(CarForEditing));
+                }
+            }
+        }
+
+        private void AddPhotoToGallery()
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "Image files|*.png;*.jpeg;*.jpg" };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string newPath = CopyImageToAppData(openFileDialog.FileName);
+                if (newPath != null && CarForEditing != null)
+                {
+                    if (CarForEditing.PhotoGallery == null)
+                        CarForEditing.PhotoGallery = new List<string>();
+                    CarForEditing.PhotoGallery.Add(newPath);
+                    OnPropertyChanged(nameof(CarForEditing));
+                    (RemovePhotoUrlCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        private void RemovePhotoUrl()
+        {
+            if (CarForEditing?.PhotoGallery != null && CarForEditing.PhotoGallery.Count > 0)
+            {
+                CarForEditing.PhotoGallery.RemoveAt(CarForEditing.PhotoGallery.Count - 1);
+                OnPropertyChanged(nameof(CarForEditing));
+                (RemovePhotoUrlCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+
+        private string CopyImageToAppData(string sourceImagePath)
+        {
+            try
+            {
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string destFolder = Path.Combine(baseDirectory, "UserData", "Images");
+                Directory.CreateDirectory(destFolder);
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(sourceImagePath);
+                string destinationPath = Path.Combine(destFolder, uniqueFileName);
+                File.Copy(sourceImagePath, destinationPath);
+                return Path.Combine("UserData", "Images", uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении фото: {ex.Message}");
+                return null;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

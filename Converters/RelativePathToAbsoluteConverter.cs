@@ -14,8 +14,11 @@ namespace TaxiWPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            // Используем parameter как путь, если value пустой
+            string relativePath = parameter as string ?? value as string;
+            
             // Проверяем, что нам передали непустой путь (string)
-            if (value is string relativePath && !string.IsNullOrEmpty(relativePath))
+            if (!string.IsNullOrEmpty(relativePath))
             {
                 try
                 {

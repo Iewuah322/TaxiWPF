@@ -32,7 +32,15 @@ namespace TaxiWPF.Views
             }
             else
             {
-                MessageBox.Show("Пожалуйста, опишите вашу проблему.");
+                MessageBox.Show("Пожалуйста, опишите вашу проблему.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                this.DragMove();
             }
         }
     }

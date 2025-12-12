@@ -200,6 +200,40 @@ namespace TaxiWPF.Repositories
 
         // --- ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ (Могут понадобиться) ---
 
+        // Смена пароля пользователя
+        public bool ChangePassword(int userId, string currentPassword, string newPassword)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    // Проверяем текущий пароль
+                    var checkCmd = new SqlCommand("SELECT password FROM Users WHERE user_id = @user_id", connection);
+                    checkCmd.Parameters.AddWithValue("@user_id", userId);
+                    var currentPasswordFromDb = checkCmd.ExecuteScalar()?.ToString();
+
+                    if (currentPasswordFromDb != currentPassword)
+                    {
+                        return false; // Текущий пароль неверен
+                    }
+
+                    // Обновляем пароль
+                    var updateCmd = new SqlCommand("UPDATE Users SET password = @password WHERE user_id = @user_id", connection);
+                    updateCmd.Parameters.AddWithValue("@password", newPassword); // !!! В РЕАЛЬНОМ ПРИЛОЖЕНИИ ХЕШИРОВАТЬ !!!
+                    updateCmd.Parameters.AddWithValue("@user_id", userId);
+                    updateCmd.ExecuteNonQuery();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при смене пароля: {ex.Message}");
+                    MessageBox.Show($"Ошибка при смене пароля: {ex.Message}", "Ошибка БД");
+                    return false;
+                }
+            }
+        }
+
         // Обновление данных пользователя (например, телефона или рейтинга)
         public bool UpdateUser(User user)
         {

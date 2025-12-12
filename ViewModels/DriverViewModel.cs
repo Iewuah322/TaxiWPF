@@ -61,7 +61,25 @@ namespace TaxiWPF.ViewModels
         public Order SelectedOrder
         {
             get => _selectedOrder;
-            set { _selectedOrder = value; OnPropertyChanged(); UpdateCommandStates(); }
+            set 
+            { 
+                // Сбрасываем IsSelected для всех заказов
+                foreach (var order in AvailableOrders)
+                {
+                    order.IsSelected = false;
+                }
+                
+                _selectedOrder = value; 
+                
+                // Устанавливаем IsSelected для выбранного заказа
+                if (_selectedOrder != null)
+                {
+                    _selectedOrder.IsSelected = true;
+                }
+                
+                OnPropertyChanged(); 
+                UpdateCommandStates(); 
+            }
 
         }
         public string StatusMessage
@@ -106,6 +124,16 @@ namespace TaxiWPF.ViewModels
             set { _panelTitle = value; OnPropertyChanged(); }
         }
 
+        // --- Свойства для панели профиля ---
+        private bool _isProfilePanelVisible = false;
+        public bool IsProfilePanelVisible
+        {
+            get => _isProfilePanelVisible;
+            set { _isProfilePanelVisible = value; OnPropertyChanged(); }
+        }
+
+        public User CurrentDriver => _currentUser;
+
         public ICommand AcceptOrderCommand { get; }
         public ICommand DeclineOrderCommand { get; }
         // --- НОВЫЕ КОМАНДЫ ---
@@ -113,6 +141,10 @@ namespace TaxiWPF.ViewModels
         public ICommand StartTripCommand { get; }
         public ICommand CompleteOrderCommand { get; }
         public ICommand GoToDashboardCommand { get; }
+        public ICommand StopAcceptingOrdersCommand { get; }
+        public ICommand ToggleProfilePanelCommand { get; }
+        public ICommand ContactSupportCommand { get; }
+        public ICommand StartAcceptingOrdersCommand { get; }
 
         // ---------------------
 
@@ -134,8 +166,8 @@ namespace TaxiWPF.ViewModels
             AvailableOrders = new ObservableCollection<Order>();
 
             // --- ИЗМЕНЕНЫ CanExecute ---
-            AcceptOrderCommand = new RelayCommand(async () => await AcceptOrder(), () => CanShowAcceptDecline);
-            DeclineOrderCommand = new RelayCommand(DeclineOrder, () => CanShowAcceptDecline);
+            AcceptOrderCommand = new RelayCommand<Order>(async (order) => await AcceptOrder(order), (order) => order != null && IsOnline && !IsOnOrder);
+            DeclineOrderCommand = new RelayCommand<Order>((order) => DeclineOrder(order), (order) => order != null && IsOnline && !IsOnOrder);
 
             // --- НОВЫЕ КОМАНДЫ ---
             ArrivedCommand = new RelayCommand(DriverArrived, () => CanShowArrived);
@@ -144,6 +176,10 @@ namespace TaxiWPF.ViewModels
             RateClientCommand = new RelayCommand(RateClient, () => ClientRating > 0);
             SkipRateClientCommand = new RelayCommand(SkipRateClient);
             GoToDashboardCommand = new RelayCommand(GoToDashboard, () => !IsOnOrder);
+            StopAcceptingOrdersCommand = new RelayCommand(StopAcceptingOrders, () => !IsOnOrder);
+            ToggleProfilePanelCommand = new RelayCommand(() => IsProfilePanelVisible = !IsProfilePanelVisible);
+            ContactSupportCommand = new RelayCommand(ContactSupport);
+            StartAcceptingOrdersCommand = new RelayCommand(StartAcceptingOrders, () => !IsOnline);
             // ---------------------
 
             DriverLocation = new PointLatLng(55.17, 61.38); // Заглушка
@@ -262,11 +298,11 @@ namespace TaxiWPF.ViewModels
             }
         }
 
-        private async Task AcceptOrder()
+        private async Task AcceptOrder(Order order)
         {
-            if (SelectedOrder == null) return;
+            if (order == null) return;
 
-            AcceptedOrder = SelectedOrder;
+            AcceptedOrder = order;
             IsOnOrder = true; // Это скроет список и покажет панель заказа
 
             // --- ИЗМЕНЕНО: Просто вызываем сервис ---
@@ -290,15 +326,18 @@ namespace TaxiWPF.ViewModels
                 OnRouteRequired?.Invoke(DriverLocation, PassengerLocation);
             }
 
-            AvailableOrders.Clear();
+            AvailableOrders.Remove(order);
             SelectedOrder = null;
         }
 
-        private void DeclineOrder()
+        private void DeclineOrder(Order order)
         {
-            if (SelectedOrder == null) return;
-            AvailableOrders.Remove(SelectedOrder);
-            SelectedOrder = null;
+            if (order == null) return;
+            AvailableOrders.Remove(order);
+            if (SelectedOrder == order)
+            {
+                SelectedOrder = null;
+            }
         }
 
         // --- НОВЫЕ МЕТОДЫ ДЛЯ КНОПОК ---
@@ -392,8 +431,8 @@ namespace TaxiWPF.ViewModels
         // --- НОВЫЕ МЕТОДЫ ОБНОВЛЕНИЯ UI ---
         private void UpdateCommandStates()
         {
-            (AcceptOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            (DeclineOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (AcceptOrderCommand as RelayCommand<Order>)?.RaiseCanExecuteChanged();
+            (DeclineOrderCommand as RelayCommand<Order>)?.RaiseCanExecuteChanged();
             (ArrivedCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (StartTripCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (CompleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -455,6 +494,29 @@ namespace TaxiWPF.ViewModels
                     break;
                 }
             }
+        }
+
+        private void StopAcceptingOrders()
+        {
+            IsOnline = false;
+            _orderTimer?.Stop();
+            
+            // Возвращаемся на Dashboard
+            GoToDashboard();
+        }
+
+        private void StartAcceptingOrders()
+        {
+            IsOnline = true;
+            _orderTimer?.Start();
+            (StartAcceptingOrdersCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (StopAcceptingOrdersCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        private void ContactSupport()
+        {
+            MessageBox.Show("Для связи с поддержкой напишите на support@taxiwpf.ru или позвоните +7 (800) 123-45-67", 
+                "Поддержка", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }

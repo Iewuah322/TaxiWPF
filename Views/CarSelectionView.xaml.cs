@@ -45,5 +45,13 @@ namespace TaxiWPF.Views
                 this.DragMove();
             }
         }
+
+        private void CarCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is Car car)
+            {
+                _viewModel.SelectCar(car);
+            }
+        }
     }
 }

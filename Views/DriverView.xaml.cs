@@ -30,6 +30,9 @@ namespace TaxiWPF.Views
             InitializeComponent();
 
             OpenStreetMapProvider.UserAgent = "MyTaxiApp/1.0";
+            
+            // Регистрируем Google Maps провайдер
+            GMap.NET.MapProviders.GMapProviders.List.Add(TaxiWPF.MapProviders.GoogleMapProvider.Instance);
 
             // --- НОВЫЙ БЛОК: Подписка на DataContextChanged ---
             this.DataContextChanged += (sender, args) =>
@@ -52,9 +55,9 @@ namespace TaxiWPF.Views
             // --- КОНЕЦ НОВОГО БЛОКА ---
 
             // (Код ниже у тебя уже есть)
-            // Настройка карты
-            MainMap.MapProvider = OpenStreetMapProvider.Instance;
-            GMaps.Instance.Mode = AccessMode.ServerAndCache;
+            // Настройка карты - используем Google Maps
+            MainMap.MapProvider = TaxiWPF.MapProviders.GoogleMapProvider.Instance;
+            GMaps.Instance.Mode = AccessMode.ServerOnly; // Отключен SQLite кэш для совместимости
             MainMap.Position = new PointLatLng(55.1599, 61.4026); // Челябинск
             MainMap.MinZoom = 5;
             MainMap.MaxZoom = 18;
@@ -73,7 +76,22 @@ namespace TaxiWPF.Views
             {
                 // Напрямую устанавливаем рейтинг в ViewModel
                 _viewModel.ClientRating = rating;
+                
+                // Обновляем цвета звезд
+                UpdateDriverRatingStars(rating);
             }
+        }
+
+        private void UpdateDriverRatingStars(int rating)
+        {
+            var yellowBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107"));
+            var grayBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
+
+            Star1.Foreground = rating >= 1 ? yellowBrush : grayBrush;
+            Star2.Foreground = rating >= 2 ? yellowBrush : grayBrush;
+            Star3.Foreground = rating >= 3 ? yellowBrush : grayBrush;
+            Star4.Foreground = rating >= 4 ? yellowBrush : grayBrush;
+            Star5.Foreground = rating >= 5 ? yellowBrush : grayBrush;
         }
 
         private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -88,6 +106,7 @@ namespace TaxiWPF.Views
         {
             Close();
         }
+
 
 
         private void DrawRoute(PointLatLng start, PointLatLng end)

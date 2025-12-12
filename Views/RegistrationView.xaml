@@ -4,8 +4,8 @@
         xmlns:vm="clr-namespace:TaxiWPF.ViewModels"
         xmlns:converters="clr-namespace:TaxiWPF.Converters"
         Title="Регистрация" 
-        Height="700" Width="420"
-        SizeToContent="Width" WindowStartupLocation="CenterScreen"
+        Height="720" Width="1280"
+        WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         FontFamily="Segoe UI" MouseLeftButtonDown="Window_MouseLeftButtonDown">
 

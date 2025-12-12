@@ -34,6 +34,7 @@ namespace TaxiWPF.ViewModels
 
         public ICommand RequestTokenCommand { get; }
         public ICommand ResetPasswordCommand { get; }
+        public ICommand GoToLoginCommand { get; set; }
 
         public PasswordRecoveryViewModel()
         {
@@ -70,15 +71,8 @@ namespace TaxiWPF.ViewModels
             if (_userRepository.ResetPasswordWithToken(Token, NewPassword))
             {
                 MessageBox.Show("Пароль успешно сброшен! Теперь вы можете войти с новым паролем.", "Успех");
-                // Закрываем окно
-                foreach (Window window in Application.Current.Windows)
-                {
-                    if (window.DataContext == this)
-                    {
-                        window.Close();
-                        break;
-                    }
-                }
+                // Возвращаемся к форме входа
+                GoToLoginCommand?.Execute(null);
             }
             else
             {

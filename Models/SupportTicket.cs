@@ -16,5 +16,8 @@ namespace TaxiWPF.Models
 
         // Дополнительное свойство для отображения информации о пользователе в списке
         public User UserInfo { get; set; }
+        
+        // Свойство для выделения в UI
+        public bool IsSelected { get; set; } = false;
     }
 }

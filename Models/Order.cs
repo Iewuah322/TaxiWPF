@@ -27,6 +27,10 @@ namespace TaxiWPF.Models
         // ------------------------
 
         public string PaymentMethod { get; set; }
+        
+        // --- Для выделения выбранного заказа ---
+        public bool IsSelected { get; set; } = false;
+        // --------------------------------------
 
     }
 }
