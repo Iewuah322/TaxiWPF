@@ -27,6 +27,20 @@ namespace TaxiWPF.Services
 
         public static OrderService Instance => _instance.Value;
 
+        public async Task<Order> SubmitOrderAsync(Order newOrder)
+        {
+            newOrder.Status = OrderState.Searching; // Устанавливаем начальный статус
+
+            // Создаем заказ в БД через репозиторий асинхронно
+            var createdOrder = await _orderRepository.CreateOrderAsync(newOrder);
+
+            if (createdOrder != null)
+            {
+                Notify(createdOrder); // Оповещаем о НОВОМ заказе
+            }
+            return createdOrder; // Возвращаем заказ с ID
+        }
+
         // Клиент вызывает этот метод
         public Order SubmitOrder(Order newOrder)
         {

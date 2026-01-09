@@ -23,6 +23,49 @@ namespace TaxiWPF.Repositories
 
         // Создание нового заказа
 
+        public async Task<List<Order>> GetPastOrdersByClientIdAsync(int clientId)
+        {
+            var orders = new List<Order>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    
+                    System.Diagnostics.Debug.WriteLine($"[GetPastOrdersByClientIdAsync] Начало поиска заказов для clientId={clientId}");
+                    
+                    var command = new SqlCommand(
+                        @"SELECT o.*, 
+                            ISNULL(c.full_name, '') as client_name, 
+                            ISNULL(c.rating, 0) as client_rating, 
+                            d.full_name as driver_name, 
+                            d.DriverPhotoUrl 
+                   FROM Orders o
+                   LEFT JOIN Users c ON o.client_id = c.user_id 
+                   LEFT JOIN Users d ON o.driver_id = d.user_id
+                   WHERE o.client_id = @clientId 
+                     AND o.Status NOT IN (@idle, @searching)
+                   ORDER BY o.order_id DESC", connection);
+                    command.Parameters.AddWithValue("@clientId", clientId);
+                    command.Parameters.AddWithValue("@idle", (int)OrderState.Idle);
+                    command.Parameters.AddWithValue("@searching", (int)OrderState.Searching);
+                    
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var order = MapReaderToOrder(reader);
+                            orders.Add(order);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GetPastOrdersByClientIdAsync] Ошибка при получении истории заказов: {ex.Message}");
+                }
+            }
+            return orders;
+        }
 
         public List<Order> GetPastOrdersByClientId(int clientId)
         {
@@ -107,6 +150,44 @@ namespace TaxiWPF.Repositories
                 }
             }
             return orders;
+        }
+
+        public async Task<Order> CreateOrderAsync(Order newOrder)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    // ИЗМЕНЕН SQL-ЗАПРОС: Добавлены поле PaymentMethod и параметр @PaymentMethod
+                    var command = new SqlCommand(
+                        @"INSERT INTO Orders (client_id, PointA, PointB, Status, Tariff, TotalPrice, PaymentMethod) 
+                  OUTPUT INSERTED.order_id 
+                  VALUES (@client_id, @PointA, @PointB, @Status, @Tariff, @TotalPrice, @PaymentMethod)", connection);
+
+                    command.Parameters.AddWithValue("@client_id", newOrder.OrderClient.client_id);
+                    command.Parameters.AddWithValue("@PointA", newOrder.PointA);
+                    command.Parameters.AddWithValue("@PointB", newOrder.PointB);
+                    command.Parameters.AddWithValue("@Status", (int)newOrder.Status);
+                    command.Parameters.AddWithValue("@Tariff", newOrder.Tariff);
+                    command.Parameters.AddWithValue("@TotalPrice", newOrder.TotalPrice);
+                    // ДОБАВЛЕНО: Передаем способ оплаты в базу данных
+                    command.Parameters.AddWithValue("@PaymentMethod", (object)newOrder.PaymentMethod ?? DBNull.Value);
+
+                    System.Diagnostics.Debug.WriteLine($"[CreateOrderAsync] Создание заказа: client_id={newOrder.OrderClient.client_id}, Status={newOrder.Status}");
+
+                    var result = await command.ExecuteScalarAsync();
+                    newOrder.order_id = (int)result;
+                    System.Diagnostics.Debug.WriteLine($"[CreateOrderAsync] Заказ создан с order_id={newOrder.order_id}");
+                    return newOrder;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при создании заказа: {ex.Message}");
+                    MessageBox.Show($"Не удалось создать заказ: {ex.Message}", "Ошибка БД");
+                    return null;
+                }
+            }
         }
 
         public Order CreateOrder(Order newOrder)

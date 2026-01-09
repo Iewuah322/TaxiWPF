@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using TaxiWPF.Views;
+using GMap.NET;
 
 namespace TaxiWPF
 {
@@ -16,6 +17,16 @@ namespace TaxiWPF
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            try
+            {
+                // Отключаем локальный кэш, чтобы карта не искала SQLite
+                GMaps.Instance.Mode = AccessMode.ServerOnly;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка настройки GMap: {ex.Message}");
+            }
+
             base.OnStartup(e);
             
             // Показываем окно загрузки с видео

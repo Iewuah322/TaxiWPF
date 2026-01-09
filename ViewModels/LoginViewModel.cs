@@ -32,9 +32,9 @@ namespace TaxiWPF.ViewModels
             // Команды навигации будут установлены из AuthViewModel
         }
 
-        private void Login()
+        private async void Login()
         {
-            var user = _userRepository.GetUserByUsername(Username);
+            var user = await _userRepository.GetUserByUsernameAsync(Username);
             if (user != null && user.password == Password)
             {
                 if (user.role == "Driver")

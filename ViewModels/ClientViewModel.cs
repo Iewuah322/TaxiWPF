@@ -457,7 +457,7 @@ namespace TaxiWPF.ViewModels
             System.Diagnostics.Debug.WriteLine($"[ClientViewModel] Обновляем статус заказа на {updatedOrder.Status}");
             
             // Важно: Обновляем UI в основном потоке
-            Application.Current.Dispatcher.Invoke(() =>
+            Application.Current.Dispatcher.Invoke(async () =>
             {
                 // Обновляем и заказ, и состояние
                 CurrentOrder = updatedOrder;
@@ -489,7 +489,7 @@ namespace TaxiWPF.ViewModels
                         // Обновляем историю поездок, если панель профиля открыта
                         if (IsProfilePanelVisible)
                         {
-                            LoadPastTrips();
+                            await LoadPastTrips();
                         }
                         break;
                     case OrderState.Archived:
@@ -501,7 +501,7 @@ namespace TaxiWPF.ViewModels
         }
 
         // --- ИЗМЕНЕНО: Метод FindTaxi (убрали async/await и таймеры) ---
-        private void FindTaxi()
+        private async void FindTaxi()
         {
             if (!CanRequestNewOrder) return;
 
@@ -557,7 +557,7 @@ namespace TaxiWPF.ViewModels
                 PaymentMethod = IsCardPayment ? "Карта" : "Наличные"
             };
 
-            CurrentOrder = OrderService.Instance.SubmitOrder(newOrder);
+            CurrentOrder = await OrderService.Instance.SubmitOrderAsync(newOrder);
         }
 
         private void ValidateCardNumber(bool force = false)
@@ -583,10 +583,10 @@ namespace TaxiWPF.ViewModels
             ResetToIdleState();
         }
 
-        private void RateDriver()
+        private async void RateDriver()
         {
             // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            bool success = _ratingRepository.AddRating(
+            bool success = await _ratingRepository.AddRatingAsync(
                 CurrentOrder,
                 _currentUser.user_id,
                 CurrentOrder.AssignedDriver.driver_id,
@@ -612,12 +612,12 @@ namespace TaxiWPF.ViewModels
             // Обновляем историю поездок после оценки
             if (IsProfilePanelVisible)
             {
-                LoadPastTrips();
+                await LoadPastTrips();
             }
 
         }
 
-        private void SkipRating()
+        private async void SkipRating()
         {
             MessageBox.Show("Оценка пропущена.", "Рейтинг");
             CurrentOrder.ClientRated = true;
@@ -627,7 +627,7 @@ namespace TaxiWPF.ViewModels
             // Обновляем историю поездок после пропуска оценки
             if (IsProfilePanelVisible)
             {
-                LoadPastTrips();
+                await LoadPastTrips();
             }
         }
 
@@ -666,30 +666,30 @@ namespace TaxiWPF.ViewModels
 
         // --- ТВОИ СТАРЫЕ МЕТОДЫ (ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ) ---
         #region (Методы, которые не менялись)
-        private void ToggleProfilePanel()
+        private async void ToggleProfilePanel()
         {
             IsProfilePanelVisible = !IsProfilePanelVisible;
             if (IsProfilePanelVisible)
             {
                 // --- НАЧАЛО ИЗМЕНЕНИЙ ---
                 // 1. Загружаем самую свежую версию пользователя из БД (с обновленным рейтингом)
-                var updatedUser = new UserRepository().GetUserByUsername(CurrentUser.username);
+                var updatedUser = await new UserRepository().GetUserByUsernameAsync(CurrentUser.username);
                 if (updatedUser != null)
                 {
                     CurrentUser = updatedUser;
                 }
 
                 // 2. Загружаем актуальную историю поездок
-                LoadPastTrips();
+                await LoadPastTrips();
                 // --- КОНЕЦ ИЗМЕНЕНИЙ ---
             }
         }
 
-        private void LoadPastTrips()
+        private async Task LoadPastTrips()
         {
             System.Diagnostics.Debug.WriteLine($"[LoadPastTrips] Загрузка истории поездок для пользователя user_id={CurrentUser?.user_id}");
             PastTrips.Clear();
-            var trips = _orderRepository.GetPastOrdersByClientId(CurrentUser.user_id);
+            var trips = await _orderRepository.GetPastOrdersByClientIdAsync(CurrentUser.user_id);
             System.Diagnostics.Debug.WriteLine($"[LoadPastTrips] Получено {trips.Count} поездок из репозитория");
             foreach (var trip in trips)
             {

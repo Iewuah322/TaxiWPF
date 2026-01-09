@@ -22,6 +22,49 @@ namespace TaxiWPF.Repositories
             _connectionString = ConfigurationManager.ConnectionStrings["TaxiDB"].ConnectionString;
         }
 
+        public async Task<User> GetUserByUsernameAsync(string username)
+        {
+            User user = null;
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    // Выбираем все поля из таблицы Users
+                    var command = new SqlCommand("SELECT * FROM Users WHERE username = @username", connection);
+                    command.Parameters.AddWithValue("@username", username);
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            user = new User
+                            {
+                                user_id = (int)reader["user_id"],
+                                username = reader["username"].ToString(),
+                                password = reader["password"].ToString(), // В реальном приложении здесь была бы проверка хеша
+                                email = reader["email"].ToString(),
+                                role = reader["role"].ToString(),
+                                full_name = reader["full_name"] as string,
+                                phone = reader["phone"] as string,
+                                rating = reader["rating"] as decimal?,
+                                // --- ДОБАВЛЕНЫ ПОЛЯ ВОДИТЕЛЯ ---
+                                driver_status = reader["driver_status"] as string,
+                                geo_position = reader["geo_position"] as string,
+                                DriverPhotoUrl = reader["DriverPhotoUrl"] as string,
+                                LicensePhotoPath = reader["LicensePhotoPath"] as string
+                            };
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при получении пользователя: {ex.Message}");
+                    MessageBox.Show($"Ошибка при подключении к БД: {ex.Message}", "Ошибка");
+                }
+            }
+            return user;
+        }
+
         public User GetUserByUsername(string username)
         {
             User user = null;
