@@ -148,12 +148,13 @@
         <Setter Property="Foreground" Value="#333333"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="FontSize" Value="14"/>
-        <Setter Property="Height" Value="45"/>
+        <Setter Property="MinHeight" Value="45"/>
+        <Setter Property="Padding" Value="10,0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" CornerRadius="5">
+                    <Border x:Name="border" CornerRadius="5" Padding="{TemplateBinding Padding}">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <GradientStop Color="#FFD700" Offset="0"/>
@@ -439,7 +440,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" CornerRadius="5">
+                    <Border x:Name="border" CornerRadius="5" Padding="{TemplateBinding Padding}">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <GradientStop Color="#198754" Offset="0"/>
@@ -472,7 +473,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" CornerRadius="5">
+                    <Border x:Name="border" CornerRadius="5" Padding="{TemplateBinding Padding}">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <GradientStop Color="#D9534F" Offset="0"/>
@@ -709,7 +710,8 @@
                 <ControlTemplate TargetType="CheckBox">
                     <StackPanel Orientation="Horizontal">
                         <Border x:Name="checkBoxBorder" Width="18" Height="18" BorderBrush="#FFC107" BorderThickness="2" CornerRadius="3" Background="Transparent" VerticalAlignment="Center">
-                            <TextBlock x:Name="checkMark" Text="✔" Foreground="#FFC107" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <!-- Заменили текстовую галочку на Path -->
+                            <Path x:Name="checkMark" Data="M 3,9 L 7,13 L 14,4" Stroke="#FFC107" StrokeThickness="2" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
